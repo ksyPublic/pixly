@@ -2,16 +2,18 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Format } from "@/lib/conversions";
-import { FORMATS } from "@/lib/conversions";
 import {
-  convertImage,
-  formatBytes,
-  outputFilename,
-} from "@/lib/convert";
+  FORMATS,
+  INPUT_ACCEPT,
+  OUTPUT_FORMATS,
+  detectFormat,
+} from "@/lib/conversions";
+import { convertImage, formatBytes, outputFilename } from "@/lib/convert";
 
 interface Item {
   id: string;
   file: File;
+  sourceFmt: Format | null;
   status: "converting" | "done" | "error";
   outUrl?: string;
   outName?: string;
@@ -20,11 +22,12 @@ interface Item {
 }
 
 export default function Converter({ from, to }: { from: Format; to: Format }) {
+  const [target, setTarget] = useState<Format>(to);
   const [items, setItems] = useState<Item[]>([]);
   const [quality, setQuality] = useState(0.92);
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const lossy = FORMATS[to].lossy;
+  const lossy = FORMATS[target].lossy;
 
   // Revoke object URLs on unmount to avoid leaking blob memory.
   const itemsRef = useRef(items);
@@ -36,9 +39,9 @@ export default function Converter({ from, to }: { from: Format; to: Format }) {
   }, []);
 
   const runConvert = useCallback(
-    async (id: string, file: File, q: number) => {
+    async (id: string, file: File, tgt: Format, q: number) => {
       try {
-        const blob = await convertImage(file, to, { quality: q });
+        const blob = await convertImage(file, tgt, { quality: q });
         const outUrl = URL.createObjectURL(blob);
         setItems((prev) =>
           prev.map((it) =>
@@ -47,7 +50,7 @@ export default function Converter({ from, to }: { from: Format; to: Format }) {
                   ...it,
                   status: "done",
                   outUrl,
-                  outName: outputFilename(file.name, to),
+                  outName: outputFilename(file.name, tgt),
                   outSize: blob.size,
                 }
               : it,
@@ -67,40 +70,54 @@ export default function Converter({ from, to }: { from: Format; to: Format }) {
         );
       }
     },
-    [to],
+    [],
   );
 
   const addFiles = useCallback(
     (fileList: FileList | File[]) => {
       const files = Array.from(fileList);
       if (files.length === 0) return;
-      const newItems: Item[] = files.map((file) => ({
-        id: crypto.randomUUID(),
-        file,
-        status: "converting",
-      }));
+      const newItems: Item[] = files.map((file) => {
+        const sourceFmt = detectFormat(file);
+        return {
+          id: crypto.randomUUID(),
+          file,
+          sourceFmt,
+          status: sourceFmt ? "converting" : "error",
+          error: sourceFmt ? undefined : "Unsupported file type.",
+        };
+      });
       setItems((prev) => [...prev, ...newItems]);
-      newItems.forEach((it) => runConvert(it.id, it.file, quality));
+      newItems.forEach(
+        (it) => it.sourceFmt && runConvert(it.id, it.file, target, quality),
+      );
     },
-    [quality, runConvert],
+    [target, quality, runConvert],
   );
 
-  // Re-encode everything when the quality slider changes (lossy targets only).
+  // Re-encode everything when the target format or quality changes.
   const reconvertAll = useCallback(
-    (q: number) => {
+    (tgt: Format, q: number) => {
       setItems((prev) => {
         prev.forEach((it) => it.outUrl && URL.revokeObjectURL(it.outUrl));
-        const reset = prev.map((it) => ({
-          ...it,
-          status: "converting" as const,
-          outUrl: undefined,
-        }));
-        reset.forEach((it) => runConvert(it.id, it.file, q));
+        const reset = prev.map((it) =>
+          it.sourceFmt
+            ? { ...it, status: "converting" as const, outUrl: undefined, error: undefined }
+            : it,
+        );
+        reset.forEach(
+          (it) => it.sourceFmt && runConvert(it.id, it.file, tgt, q),
+        );
         return reset;
       });
     },
     [runConvert],
   );
+
+  function changeTarget(next: Format) {
+    setTarget(next);
+    if (items.length > 0) reconvertAll(next, quality);
+  }
 
   function clearAll() {
     items.forEach((it) => it.outUrl && URL.revokeObjectURL(it.outUrl));
@@ -138,7 +155,7 @@ export default function Converter({ from, to }: { from: Format; to: Format }) {
         <input
           ref={inputRef}
           type="file"
-          accept={FORMATS[from].accept}
+          accept={INPUT_ACCEPT}
           multiple
           hidden
           onChange={(e) => {
@@ -165,33 +182,53 @@ export default function Converter({ from, to }: { from: Format; to: Format }) {
           Drop {FORMATS[from].label} files here, or click to browse
         </p>
         <p className="mt-1 text-sm text-black/50 dark:text-white/50">
-          Converted to {FORMATS[to].label} instantly in your browser · never uploaded
+          Converted instantly in your browser · never uploaded
         </p>
       </div>
 
-      {/* Quality slider */}
-      {lossy && (
-        <div className="mt-5 flex items-center gap-3">
-          <label htmlFor="quality" className="text-sm text-black/60 dark:text-white/60">
-            Quality
+      {/* Controls: target format + quality */}
+      <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-3">
+        <div className="flex items-center gap-2">
+          <label htmlFor="target" className="text-sm text-black/60 dark:text-white/60">
+            Convert to
           </label>
-          <input
-            id="quality"
-            type="range"
-            min={0.4}
-            max={1}
-            step={0.01}
-            value={quality}
-            onChange={(e) => setQuality(Number(e.target.value))}
-            onMouseUp={() => items.length > 0 && reconvertAll(quality)}
-            onTouchEnd={() => items.length > 0 && reconvertAll(quality)}
-            className="h-1 flex-1 cursor-pointer accent-blue-600"
-          />
-          <span className="w-10 text-right text-sm tabular-nums text-black/60 dark:text-white/60">
-            {Math.round(quality * 100)}
-          </span>
+          <select
+            id="target"
+            value={target}
+            onChange={(e) => changeTarget(e.target.value as Format)}
+            className="rounded-lg border border-black/15 bg-transparent px-3 py-1.5 text-sm font-medium focus:border-blue-500 focus:outline-none dark:border-white/20"
+          >
+            {OUTPUT_FORMATS.map((f) => (
+              <option key={f} value={f} className="text-black">
+                {FORMATS[f].label}
+              </option>
+            ))}
+          </select>
         </div>
-      )}
+
+        {lossy && (
+          <div className="flex flex-1 items-center gap-3">
+            <label htmlFor="quality" className="text-sm text-black/60 dark:text-white/60">
+              Quality
+            </label>
+            <input
+              id="quality"
+              type="range"
+              min={0.4}
+              max={1}
+              step={0.01}
+              value={quality}
+              onChange={(e) => setQuality(Number(e.target.value))}
+              onMouseUp={() => items.length > 0 && reconvertAll(target, quality)}
+              onTouchEnd={() => items.length > 0 && reconvertAll(target, quality)}
+              className="h-1 flex-1 cursor-pointer accent-blue-600"
+            />
+            <span className="w-10 text-right text-sm tabular-nums text-black/60 dark:text-white/60">
+              {Math.round(quality * 100)}
+            </span>
+          </div>
+        )}
+      </div>
 
       {/* Results */}
       {items.length > 0 && (
@@ -215,7 +252,14 @@ export default function Converter({ from, to }: { from: Format; to: Format }) {
                 className="flex items-center gap-3 rounded-xl border border-black/10 bg-black/[0.02] px-4 py-3 dark:border-white/10 dark:bg-white/[0.03]"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{it.file.name}</p>
+                  <p className="truncate text-sm font-medium">
+                    {it.file.name}
+                    {it.sourceFmt && (
+                      <span className="ml-2 text-xs font-normal text-black/40 dark:text-white/40">
+                        {FORMATS[it.sourceFmt].label} → {FORMATS[target].label}
+                      </span>
+                    )}
+                  </p>
                   <p className="text-xs text-black/50 dark:text-white/50">
                     {formatBytes(it.file.size)}
                     {it.status === "done" && it.outSize != null && (

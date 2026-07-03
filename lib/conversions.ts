@@ -96,6 +96,40 @@ export const CONVERSIONS: Conversion[] = [
   { from: "bmp", to: "png" },
 ];
 
+// Formats that can be a conversion OUTPUT (i.e. we have an encoder for them).
+export const OUTPUT_FORMATS: Format[] = (Object.keys(FORMATS) as Format[]).filter(
+  (f) => FORMATS[f].encodeMime !== null,
+);
+
+// Combined accept string covering every input format we can decode.
+export const INPUT_ACCEPT = Array.from(
+  new Set(
+    (Object.keys(FORMATS) as Format[]).flatMap((f) =>
+      FORMATS[f].accept.split(","),
+    ),
+  ),
+).join(",");
+
+// Best-effort detection of a file's source format from its name/MIME type.
+export function detectFormat(file: File): Format | null {
+  const name = file.name.toLowerCase();
+  for (const f of Object.keys(FORMATS) as Format[]) {
+    const exts = FORMATS[f].accept
+      .split(",")
+      .filter((a) => a.startsWith("."));
+    if (exts.some((e) => name.endsWith(e))) return f;
+  }
+  const type = file.type.toLowerCase();
+  if (/jpe?g/.test(type)) return "jpg";
+  if (/png/.test(type)) return "png";
+  if (/webp/.test(type)) return "webp";
+  if (/avif/.test(type)) return "avif";
+  if (/gif/.test(type)) return "gif";
+  if (/bmp/.test(type)) return "bmp";
+  if (/heic|heif/.test(type)) return "heic";
+  return null;
+}
+
 export function conversionSlug(c: Conversion): string {
   return `${c.from}-to-${c.to}`;
 }
