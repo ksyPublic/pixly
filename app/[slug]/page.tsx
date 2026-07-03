@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import Converter from "@/components/Converter";
+import { AdSlot } from "@/components/AdSense";
 import {
   CONVERSIONS,
   FORMATS,
@@ -81,6 +82,9 @@ export default async function ConversionPage({
           </li>
         ))}
       </ul>
+
+      {/* Ad slot — dormant until an AdSense publisher ID is configured. */}
+      <AdSlot className="mt-10" />
 
       {/* Content section — real copy so the page isn't "thin" for AdSense/SEO. */}
       <section className="prose-sm mt-12 space-y-4 text-[15px] leading-relaxed text-black/70 dark:text-white/70">
