@@ -629,7 +629,7 @@ export default function CropStudio() {
                   : "text-muted hover:text-ink"
               }`}
             >
-              {a.label}
+              {a.value === null ? t("crop.free") : a.label}
             </button>
           ))}
         </div>
@@ -701,14 +701,14 @@ export default function CropStudio() {
             step={0.5}
             value={straighten}
             onChange={(e) => setStraighten(parseFloat(e.target.value))}
-            aria-label="Straighten angle"
+            aria-label={t("crop.straightenAria")}
             className="h-1.5 min-w-0 flex-1 cursor-pointer"
             style={{ accentColor: "var(--accent)" }}
           />
           <button
             type="button"
             onClick={() => setStraighten(0)}
-            title="Reset straighten"
+            title={t("crop.straightenReset")}
             className="w-14 shrink-0 rounded-md px-1.5 py-0.5 text-right font-mono text-xs tabular-nums text-ink transition-colors hover:bg-surface-2 motion-reduce:transition-none"
           >
             {straightenLabel}

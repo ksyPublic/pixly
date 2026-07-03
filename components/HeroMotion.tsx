@@ -3,12 +3,18 @@
 import { useEffect, useRef } from "react";
 
 /**
- * HeroMotion — a flowing, warm "aurora" mesh-gradient rendered on <canvas>.
+ * HeroMotion — a soft, warm "aurora" glow rendered on <canvas>.
  *
- * Direction: a slow, luminous field of tangerine/amber/ember light that drifts
- * behind the hero headline, giving a premium "video" feel with zero heavy libs.
- * Colours are read live from the design tokens (--accent / --bg), so it adapts
- * to light paper and dark ink themes, and to a future `data-theme` toggle.
+ * Direction: a slow, luminous field of tangerine/amber light that drifts
+ * behind the hero headline, giving a premium ambient feel with zero heavy
+ * libs. Colours are read live from the design tokens (--accent / --bg), so it
+ * adapts to light paper and dark ink themes, and to the `data-theme` toggle.
+ *
+ * It must read as a *glow that dissolves into the page*, never as a hard-edged
+ * panel. That's why the layer is masked with a centred oval vignette that fades
+ * fully to transparent well before the section edges, the alphas stay low so
+ * the headline keeps its contrast, and there is deliberately NO film grain
+ * (grain over a warm gradient reads as TV static — the opposite of premium).
  *
  * Usage: drop it INSIDE the hero <section> (which is `relative`), before the
  * headline markup. It renders its own absolutely-positioned, pointer-events-none
@@ -123,12 +129,10 @@ function hslToRgb(h: number, s: number, l: number): RGB {
 export default function HeroMotion() {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const grainRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const host = hostRef.current;
     const canvas = canvasRef.current;
-    const grain = grainRef.current;
     if (!host || !canvas) return;
     const ctx = canvas.getContext("2d", { alpha: true });
     if (!ctx) return;
@@ -136,14 +140,16 @@ export default function HeroMotion() {
     const reduceMQ = window.matchMedia("(prefers-reduced-motion: reduce)");
     const darkMQ = window.matchMedia("(prefers-color-scheme: dark)");
 
-    // Blob field — positions biased toward the edges so the very centre (where
-    // the headline sits) stays calm and legible.
+    // Blob field — concentrated in the upper-centre (behind the headline) and
+    // fading toward the lower edges, so the glow reads as light *behind* the
+    // words rather than a filled rectangle. The vignette mask erases whatever
+    // reaches the corners.
     const blobs: Blob[] = [
-      { role: "accent", cx: 0.26, cy: 0.28, ax: 0.11, ay: 0.08, r: 0.44, rPulse: 0.05, speed: 0.05, ratio: 0.8, depth: 0.05, weight: 1.05, phX: 0.0, phY: 1.7, phR: 0.4, color: { r: 255, g: 90, b: 44 } },
-      { role: "gold", cx: 0.76, cy: 0.22, ax: 0.09, ay: 0.07, r: 0.4, rPulse: 0.05, speed: 0.043, ratio: 1.15, depth: 0.035, weight: 0.95, phX: 2.1, phY: 0.6, phR: 1.9, color: { r: 255, g: 90, b: 44 } },
-      { role: "ember", cx: 0.55, cy: 0.72, ax: 0.13, ay: 0.1, r: 0.48, rPulse: 0.06, speed: 0.037, ratio: 0.9, depth: 0.075, weight: 1.0, phX: 4.2, phY: 3.3, phR: 2.7, color: { r: 255, g: 90, b: 44 } },
-      { role: "peach", cx: 0.14, cy: 0.74, ax: 0.08, ay: 0.09, r: 0.32, rPulse: 0.05, speed: 0.06, ratio: 1.2, depth: 0.1, weight: 0.85, phX: 1.1, phY: 5.0, phR: 0.9, color: { r: 255, g: 90, b: 44 } },
-      { role: "rose", cx: 0.88, cy: 0.68, ax: 0.07, ay: 0.08, r: 0.36, rPulse: 0.05, speed: 0.05, ratio: 0.7, depth: 0.05, weight: 0.9, phX: 5.4, phY: 2.2, phR: 3.6, color: { r: 255, g: 90, b: 44 } },
+      { role: "accent", cx: 0.32, cy: 0.34, ax: 0.09, ay: 0.06, r: 0.4, rPulse: 0.04, speed: 0.05, ratio: 0.8, depth: 0.05, weight: 1.0, phX: 0.0, phY: 1.7, phR: 0.4, color: { r: 255, g: 90, b: 44 } },
+      { role: "gold", cx: 0.68, cy: 0.3, ax: 0.08, ay: 0.06, r: 0.38, rPulse: 0.04, speed: 0.043, ratio: 1.15, depth: 0.035, weight: 0.9, phX: 2.1, phY: 0.6, phR: 1.9, color: { r: 255, g: 90, b: 44 } },
+      { role: "ember", cx: 0.52, cy: 0.56, ax: 0.11, ay: 0.08, r: 0.44, rPulse: 0.05, speed: 0.037, ratio: 0.9, depth: 0.06, weight: 0.9, phX: 4.2, phY: 3.3, phR: 2.7, color: { r: 255, g: 90, b: 44 } },
+      { role: "peach", cx: 0.23, cy: 0.6, ax: 0.07, ay: 0.07, r: 0.3, rPulse: 0.04, speed: 0.06, ratio: 1.2, depth: 0.08, weight: 0.65, phX: 1.1, phY: 5.0, phR: 0.9, color: { r: 255, g: 90, b: 44 } },
+      { role: "rose", cx: 0.79, cy: 0.56, ax: 0.06, ay: 0.07, r: 0.32, rPulse: 0.04, speed: 0.05, ratio: 0.7, depth: 0.05, weight: 0.7, phX: 5.4, phY: 2.2, phR: 3.6, color: { r: 255, g: 90, b: 44 } },
     ];
 
     let width = 1;
@@ -159,8 +165,7 @@ export default function HeroMotion() {
 
     // Soft render buffer: below native resolution for cheap, dreamy blur.
     const RENDER_SCALE = 0.7;
-    const targetInterval = { x: 0.5, y: 0.42 };
-    const pointer = { x: 0.5, y: 0.42, tx: targetInterval.x, ty: targetInterval.y };
+    const pointer = { x: 0.5, y: 0.42, tx: 0.5, ty: 0.42 };
 
     function computePalette(): Record<Role, RGB> {
       const cs = getComputedStyle(document.documentElement);
@@ -185,29 +190,6 @@ export default function HeroMotion() {
     function readTheme() {
       const palette = computePalette();
       for (const b of blobs) b.color = palette[b.role];
-      if (grain) grain.style.opacity = isDark ? "0.5" : "0.32";
-    }
-
-    // Static film-grain tile — generated once, blended over the aurora for a
-    // premium textured finish. Purely a data-URI, no per-frame cost.
-    function paintGrain() {
-      if (!grain) return;
-      const size = 90;
-      const nc = document.createElement("canvas");
-      nc.width = size;
-      nc.height = size;
-      const nctx = nc.getContext("2d");
-      if (!nctx) return;
-      const img = nctx.createImageData(size, size);
-      for (let i = 0; i < img.data.length; i += 4) {
-        const v = (Math.random() * 255) | 0;
-        img.data[i] = v;
-        img.data[i + 1] = v;
-        img.data[i + 2] = v;
-        img.data[i + 3] = 255;
-      }
-      nctx.putImageData(img, 0, 0);
-      grain.style.backgroundImage = `url(${nc.toDataURL("image/png")})`;
     }
 
     function resize() {
@@ -231,10 +213,12 @@ export default function HeroMotion() {
       const py = pointer.y - 0.5;
 
       ctx.clearRect(0, 0, width, height);
-      ctx.globalCompositeOperation = isDark ? "screen" : "source-over";
+      // Light theme paints over paper; dark theme adds light on ink.
+      ctx.globalCompositeOperation = isDark ? "lighter" : "source-over";
       const diag = Math.hypot(width, height);
-      const a0 = isDark ? 0.55 : 0.3;
-      const a1 = isDark ? 0.3 : 0.15;
+      // Kept low so the headline never fights the glow for contrast.
+      const a0 = isDark ? 0.26 : 0.24;
+      const a1 = isDark ? 0.12 : 0.1;
 
       for (const b of blobs) {
         const phase = tSec * b.speed;
@@ -350,7 +334,6 @@ export default function HeroMotion() {
     if (darkMQ.addEventListener) darkMQ.addEventListener("change", onSchemeChange);
 
     // ── Kick off ───────────────────────────────────────────────────────────
-    paintGrain();
     readTheme();
     resize();
     draw((performance.now() - startTime) / 1000);
@@ -369,8 +352,10 @@ export default function HeroMotion() {
     };
   }, []);
 
+  // Centred oval vignette — reaches full transparency well before every edge,
+  // so the aurora dissolves into the page instead of ending at a hard border.
   const edgeMask =
-    "radial-gradient(125% 105% at 50% 18%, rgba(0,0,0,1) 52%, rgba(0,0,0,0) 100%)";
+    "radial-gradient(ellipse 78% 72% at 50% 40%, #000 0%, rgba(0,0,0,0.55) 46%, rgba(0,0,0,0) 74%)";
 
   return (
     <div
@@ -384,18 +369,7 @@ export default function HeroMotion() {
         className="absolute inset-0 h-full w-full"
         style={{
           display: "block",
-          filter: "blur(4px) saturate(1.08)",
-          WebkitMaskImage: edgeMask,
-          maskImage: edgeMask,
-        }}
-      />
-      <div
-        ref={grainRef}
-        className="absolute inset-0"
-        style={{
-          backgroundRepeat: "repeat",
-          mixBlendMode: "soft-light",
-          opacity: 0.32,
+          filter: "blur(14px) saturate(1.05)",
           WebkitMaskImage: edgeMask,
           maskImage: edgeMask,
         }}
