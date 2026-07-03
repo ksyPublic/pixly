@@ -9,8 +9,8 @@ export const metadata: Metadata = {
 export default function AboutPage() {
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-5 py-12">
-      <h1 className="text-3xl font-bold tracking-tight">About Pixly</h1>
-      <div className="mt-6 space-y-4 text-[15px] leading-relaxed text-black/70 dark:text-white/70">
+      <h1 className="font-display text-3xl font-extrabold tracking-tight">About Pixly</h1>
+      <div className="mt-6 space-y-4 text-[15px] leading-relaxed text-muted">
         <p>
           Pixly is a free image converter built on a simple idea: your photos
           are yours. Most online converters upload your files to a server to
@@ -29,7 +29,7 @@ export default function AboutPage() {
           use), JPG, PNG, and WebP, with more on the way. There are no accounts,
           no watermarks, and no limits on how many files you convert.
         </p>
-        <h2 className="pt-2 text-xl font-semibold text-black dark:text-white">
+        <h2 className="pt-2 font-display text-xl font-bold text-ink">
           How it stays free
         </h2>
         <p>

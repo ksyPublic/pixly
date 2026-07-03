@@ -54,10 +54,10 @@ export default async function ConversionPage({
 
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-5 py-10 sm:py-14">
-      <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+      <h1 className="font-display text-3xl font-extrabold tracking-tight sm:text-4xl">
         {fromLabel} to {toLabel} Converter
       </h1>
-      <p className="mt-3 text-black/60 dark:text-white/60">
+      <p className="mt-3 text-muted">
         Free {fromLabel}&nbsp;→&nbsp;{toLabel} conversion that runs entirely in
         your browser. Your images are never uploaded to a server.
       </p>
@@ -67,7 +67,7 @@ export default async function ConversionPage({
       </div>
 
       {/* Trust badges */}
-      <ul className="mt-8 grid grid-cols-3 gap-3 text-center text-xs text-black/60 dark:text-white/60">
+      <ul className="mt-8 grid grid-cols-3 gap-3 text-center text-xs text-muted">
         {[
           ["100% private", "Files stay on your device"],
           ["No sign-up", "No account, no email"],
@@ -75,9 +75,9 @@ export default async function ConversionPage({
         ].map(([title, sub]) => (
           <li
             key={title}
-            className="rounded-xl border border-black/10 px-2 py-3 dark:border-white/10"
+            className="rounded-xl border border-line bg-surface px-2 py-3"
           >
-            <p className="font-semibold text-black dark:text-white">{title}</p>
+            <p className="font-semibold text-ink">{title}</p>
             <p className="mt-0.5">{sub}</p>
           </li>
         ))}
@@ -87,8 +87,8 @@ export default async function ConversionPage({
       <AdSlot className="mt-10" />
 
       {/* Content section — real copy so the page isn't "thin" for AdSense/SEO. */}
-      <section className="prose-sm mt-12 space-y-4 text-[15px] leading-relaxed text-black/70 dark:text-white/70">
-        <h2 className="text-xl font-semibold text-black dark:text-white">
+      <section className="prose-sm mt-12 space-y-4 text-[15px] leading-relaxed text-muted">
+        <h2 className="font-display text-xl font-bold text-ink">
           How to convert {fromLabel} to {toLabel}
         </h2>
         <ol className="ml-5 list-decimal space-y-1">
@@ -97,12 +97,12 @@ export default async function ConversionPage({
           <li>Click <strong>Download</strong> to save the {toLabel} file.</li>
         </ol>
 
-        <h2 className="pt-2 text-xl font-semibold text-black dark:text-white">
+        <h2 className="pt-2 font-display text-xl font-bold text-ink">
           Why convert {fromLabel} to {toLabel}?
         </h2>
         <p>{whyCopy(fromLabel, toLabel)}</p>
 
-        <h2 className="pt-2 text-xl font-semibold text-black dark:text-white">
+        <h2 className="pt-2 font-display text-xl font-bold text-ink">
           Is it safe?
         </h2>
         <p>
@@ -114,8 +114,8 @@ export default async function ConversionPage({
       </section>
 
       {related.length > 0 && (
-        <section className="mt-12 border-t border-black/10 pt-6 dark:border-white/10">
-          <h2 className="mb-3 text-sm font-semibold text-black/50 dark:text-white/50">
+        <section className="mt-12 border-t border-line pt-6">
+          <h2 className="mb-3 text-sm font-semibold text-muted">
             Related converters
           </h2>
           <ul className="flex flex-wrap gap-2">
@@ -125,7 +125,7 @@ export default async function ConversionPage({
                 <li key={s}>
                   <Link
                     href={`/${s}/`}
-                    className="inline-block rounded-full border border-black/10 px-3 py-1 text-sm hover:border-black/30 dark:border-white/10 dark:hover:border-white/30"
+                    className="inline-block rounded-full border border-line bg-surface px-3 py-1 text-sm transition-colors hover:border-accent"
                   >
                     {conversionTitle(o)}
                   </Link>
