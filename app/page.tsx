@@ -1,9 +1,23 @@
 "use client";
 
+import { useRef, type CSSProperties } from "react";
 import Link from "next/link";
 import { CONVERSIONS, FORMATS, conversionSlug } from "@/lib/conversions";
 import { useI18n } from "@/lib/i18n";
+import { useScrollReveal } from "@/components/useScrollReveal";
 import HeroMotion from "@/components/HeroMotion";
+
+// Per-item reveal stagger, expressed through the shared `--reveal-stagger`
+// token so the cascade step lives in one place (app/globals.css).
+// `stepDelay` runs a cascade across a small group; `rowDelay` staggers by
+// column so long grids reveal each row promptly instead of trailing.
+function stepDelay(i: number, cap = 6): CSSProperties {
+  const n = i < cap ? i : cap;
+  return { "--reveal-delay": `calc(var(--reveal-stagger) * ${n})` } as CSSProperties;
+}
+function rowDelay(i: number, cols = 3): CSSProperties {
+  return { "--reveal-delay": `calc(var(--reveal-stagger) * ${i % cols})` } as CSSProperties;
+}
 
 const FEATURED = [
   "heic-to-jpg",
@@ -13,6 +27,8 @@ const FEATURED = [
   "png-to-jpg",
   "avif-to-jpg",
 ];
+
+const FORMAT_CHIPS = ["HEIC", "AVIF", "PNG", "JPG", "WebP", "TIFF", "GIF", "ICO", "PSD"];
 
 function Arrow() {
   return (
@@ -30,21 +46,226 @@ function Arrow() {
   );
 }
 
+function Chevron({ className }: { className?: string }) {
+  return (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      aria-hidden
+      className={className}
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 6l6 6-6 6" />
+    </svg>
+  );
+}
+
+// Hero product visual — a schematic that shows the two core actions at a glance:
+// a source photo with a live crop frame (crop) transforming into a converted
+// result tile (HEIC → JPG). Pure inline SVG, token-coloured so it adapts to
+// light/dark, and scales down cleanly to mobile via the viewBox. Decorative:
+// the surrounding copy carries the meaning, so it's aria-hidden.
+function HeroVisual({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 8 360 134"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+      className={className}
+    >
+      <defs>
+        <clipPath id="pixly-hero-a">
+          <rect x="10" y="22" width="140" height="112" rx="14" />
+        </clipPath>
+        <clipPath id="pixly-hero-b">
+          <rect x="210" y="30" width="132" height="96" rx="14" />
+        </clipPath>
+      </defs>
+
+      {/* Source photo */}
+      <rect x="10" y="22" width="140" height="112" rx="14" className="fill-surface" />
+      <g clipPath="url(#pixly-hero-a)">
+        <circle cx="112" cy="52" r="10" className="fill-accent" />
+        <path
+          d="M10 134 L52 84 L84 116 L112 80 L150 134 Z"
+          strokeWidth="2"
+          strokeLinejoin="round"
+          className="fill-surface-2 stroke-line"
+        />
+      </g>
+      <rect
+        x="10"
+        y="22"
+        width="140"
+        height="112"
+        rx="14"
+        strokeWidth="2"
+        className="stroke-line"
+      />
+
+      {/* Crop overlay — rule-of-thirds grid + corner brackets + handles */}
+      <g strokeWidth="1" opacity="0.3" className="stroke-accent">
+        <path d="M62.7 44 V116" />
+        <path d="M97.3 44 V116" />
+        <path d="M28 68 H132" />
+        <path d="M28 92 H132" />
+      </g>
+      <g strokeWidth="3" strokeLinecap="round" className="stroke-accent pixly-crop-live">
+        <path d="M28 44 H40" />
+        <path d="M28 44 V56" />
+        <path d="M132 44 H120" />
+        <path d="M132 44 V56" />
+        <path d="M28 116 H40" />
+        <path d="M28 116 V104" />
+        <path d="M132 116 H120" />
+        <path d="M132 116 V104" />
+      </g>
+      <g className="fill-accent pixly-crop-live">
+        <rect x="25.5" y="41.5" width="5" height="5" rx="1.5" />
+        <rect x="129.5" y="41.5" width="5" height="5" rx="1.5" />
+        <rect x="25.5" y="113.5" width="5" height="5" rx="1.5" />
+        <rect x="129.5" y="113.5" width="5" height="5" rx="1.5" />
+      </g>
+
+      {/* Source format tag */}
+      <rect
+        x="16"
+        y="14"
+        width="46"
+        height="19"
+        rx="6"
+        strokeWidth="1.5"
+        className="fill-surface stroke-line"
+      />
+      <text
+        x="39"
+        y="27"
+        textAnchor="middle"
+        fontSize="11"
+        fontWeight="600"
+        letterSpacing="0.4"
+        className="fill-muted font-mono"
+      >
+        HEIC
+      </text>
+
+      {/* Transform arrow */}
+      <g
+        strokeWidth="4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="stroke-accent pixly-flow"
+      >
+        <path d="M166 78 H198" />
+        <path d="M190 70 L198 78 L190 86" />
+      </g>
+
+      {/* Result photo */}
+      <rect x="210" y="30" width="132" height="96" rx="14" className="fill-surface" />
+      <g clipPath="url(#pixly-hero-b)">
+        <circle cx="306" cy="58" r="8" className="fill-accent" />
+        <path
+          d="M210 126 L246 90 L272 112 L300 86 L342 126 Z"
+          strokeWidth="2"
+          strokeLinejoin="round"
+          className="fill-surface-2 stroke-line"
+        />
+      </g>
+      <rect
+        x="210"
+        y="30"
+        width="132"
+        height="96"
+        rx="14"
+        strokeWidth="2"
+        className="stroke-line"
+      />
+
+      {/* Result format tag */}
+      <rect x="214" y="20" width="42" height="19" rx="6" className="fill-accent-soft pixly-arrive" />
+      <text
+        x="235"
+        y="33"
+        textAnchor="middle"
+        fontSize="11"
+        fontWeight="600"
+        letterSpacing="0.4"
+        className="fill-accent font-mono"
+      >
+        JPG
+      </text>
+    </svg>
+  );
+}
+
+// Simple line icons (Lucide-style) so the benefits read at a glance.
+function BenefitIcon({ name, className }: { name: string; className?: string }) {
+  const p = {
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.9,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+  };
+  return (
+    <svg viewBox="0 0 24 24" width="22" height="22" className={className}>
+      {name === "shield" && (
+        <>
+          <path
+            {...p}
+            d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1z"
+          />
+          <path {...p} d="m9 12 2 2 4-4" />
+        </>
+      )}
+      {name === "user" && (
+        <>
+          <path {...p} d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+          <circle {...p} cx="12" cy="7" r="4" />
+        </>
+      )}
+      {name === "infinity" && (
+        <path
+          {...p}
+          d="M12 12c-2-2.67-4-4-6-4a4 4 0 1 0 0 8c2 0 4-1.33 6-4zm0 0c2 2.67 4 4 6 4a4 4 0 0 0 0-8c-2 0-4 1.33-6 4z"
+        />
+      )}
+      {name === "bolt" && <path {...p} d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" />}
+    </svg>
+  );
+}
+
+function SectionHead({ title, sub }: { title: string; sub?: string }) {
+  return (
+    <div className="reveal max-w-2xl" data-reveal>
+      <span aria-hidden className="mb-3 block h-1 w-9 rounded-full bg-accent" />
+      <h2 className="break-keep font-display text-2xl font-extrabold tracking-tight sm:text-[1.75rem]">
+        {title}
+      </h2>
+      {sub && <p className="mt-2 break-keep leading-relaxed text-muted">{sub}</p>}
+    </div>
+  );
+}
+
 function ConverterCard({ slug }: { slug: string }) {
   const c = CONVERSIONS.find((x) => conversionSlug(x) === slug);
   if (!c) return null;
   return (
     <Link
       href={`/${slug}/`}
-      className="group flex items-center justify-between rounded-2xl border border-line bg-surface px-5 py-4 shadow-[var(--shadow)] transition-all hover:-translate-y-0.5 hover:border-accent"
+      className="group flex items-center justify-between gap-3 rounded-2xl border border-line bg-surface px-5 py-4 shadow-[var(--shadow)] transition-all duration-200 hover:-translate-y-0.5 hover:border-accent hover:shadow-[0_18px_40px_-22px_var(--accent)]"
     >
       <span className="flex items-center gap-2.5 font-display text-lg font-bold">
         {FORMATS[c.from].label}
         <Arrow />
         {FORMATS[c.to].label}
       </span>
-      <span className="font-mono text-[11px] uppercase tracking-wider text-muted transition-colors group-hover:text-accent">
-        →
+      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-line text-muted transition-colors group-hover:border-accent group-hover:bg-accent group-hover:text-white">
+        <Chevron />
       </span>
     </Link>
   );
@@ -52,19 +273,21 @@ function ConverterCard({ slug }: { slug: string }) {
 
 export default function Home() {
   const { t } = useI18n();
+  const rootRef = useRef<HTMLElement>(null);
+  useScrollReveal(rootRef);
   return (
-    <main className="flex-1">
+    <main ref={rootRef} className="flex-1">
       {/* Hero */}
       <section className="relative overflow-hidden">
         <HeroMotion />
         <div className="dotgrid pointer-events-none absolute inset-0 -z-10 opacity-40" />
         <div className="mx-auto max-w-3xl px-5 pb-16 pt-20 text-center sm:pt-28">
-          <span className="rise inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-1 font-mono text-[11px] uppercase tracking-wider text-muted">
+          <span className="rise inline-flex items-center gap-2 rounded-full border border-line bg-surface/80 px-3.5 py-1.5 text-[13px] font-medium text-muted backdrop-blur">
             <span className="h-1.5 w-1.5 rounded-full bg-good" />
             {t("home.eyebrow")}
           </span>
           <h1
-            className="rise mt-6 break-keep font-display text-[2.6rem] font-extrabold leading-[1.05] tracking-tight sm:text-6xl"
+            className="rise mt-6 break-keep font-display text-[2.7rem] font-extrabold leading-[1.05] tracking-tight sm:text-6xl"
             style={{ animationDelay: "60ms" }}
           >
             {t("home.h1a")}
@@ -72,7 +295,7 @@ export default function Home() {
             <span className="text-accent">{t("home.h1b")}</span>
           </h1>
           <p
-            className="rise mx-auto mt-5 max-w-xl text-lg text-muted"
+            className="rise mx-auto mt-5 max-w-xl text-lg leading-relaxed text-muted"
             style={{ animationDelay: "120ms" }}
           >
             {t("home.sub")}
@@ -83,126 +306,192 @@ export default function Home() {
           >
             <a
               href="#tools"
-              className="rounded-xl bg-accent px-5 py-3 font-medium text-white shadow-[var(--shadow)] transition-transform hover:-translate-y-0.5"
+              className="rounded-xl bg-accent px-6 py-3 font-semibold text-white shadow-[0_8px_20px_-8px_var(--accent)] transition-transform hover:-translate-y-0.5"
             >
               {t("home.ctaBrowse")}
             </a>
             <Link
               href="/crop/"
-              className="rounded-xl border border-line-strong bg-surface px-5 py-3 font-medium transition-colors hover:border-accent"
+              className="rounded-xl border border-line-strong bg-surface px-6 py-3 font-semibold transition-colors hover:border-accent hover:text-accent"
             >
               {t("home.ctaCrop")}
             </Link>
           </div>
           <p
-            className="rise mt-6 font-mono text-xs uppercase tracking-wider text-muted"
-            style={{ animationDelay: "240ms" }}
+            className="rise mt-5 text-[13px] text-muted"
+            style={{ animationDelay: "220ms" }}
           >
-            HEIC · AVIF · PNG · JPG · WebP · TIFF · GIF · ICO · PSD
+            {t("home.heroReassure")}
           </p>
+          <div
+            className="rise mt-10 flex flex-col items-center gap-3"
+            style={{ animationDelay: "280ms" }}
+          >
+            <span className="font-mono text-[11px] uppercase tracking-wider text-muted">
+              {t("home.formatsLabel")}
+            </span>
+            <ul className="flex flex-wrap items-center justify-center gap-2">
+              {FORMAT_CHIPS.map((f) => (
+                <li
+                  key={f}
+                  className="rounded-lg border border-line bg-surface px-2.5 py-1 font-mono text-xs font-medium text-muted"
+                >
+                  {f}
+                </li>
+              ))}
+            </ul>
+          </div>
+          {/* Product visual — the finale of the hero sequence: it rises in
+              just after the format chips (280ms → 340ms), then settles into a
+              quiet ambient loop (crop handles breathe, arrow drifts to the
+              result) defined on its SVG groups. */}
+          <div
+            className="rise mx-auto mt-12 w-full max-w-lg sm:mt-14"
+            style={{ animationDelay: "340ms" }}
+          >
+            <HeroVisual className="h-auto w-full" />
+          </div>
         </div>
       </section>
 
-      {/* Trust strip */}
-      <section className="mx-auto max-w-5xl px-5">
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {/* Why Pixly — benefits */}
+      <section className="mx-auto max-w-5xl px-5 pt-16 sm:pt-24">
+        <SectionHead title={t("home.why")} sub={t("home.whySub")} />
+        <ul className="mt-8 grid grid-cols-1 gap-3 sm:mt-10 sm:grid-cols-2 lg:grid-cols-4">
           {(
             [
-              ["trust.private", "trust.privateSub"],
-              ["trust.nosignup", "trust.nosignupSub"],
-              ["trust.unlimited", "trust.unlimitedSub"],
-              ["trust.instant", "trust.instantSub"],
+              ["shield", "trust.private", "trust.privateSub"],
+              ["user", "trust.nosignup", "trust.nosignupSub"],
+              ["infinity", "trust.unlimited", "trust.unlimitedSub"],
+              ["bolt", "trust.instant", "trust.instantSub"],
             ] as const
-          ).map(([tk, sk]) => (
+          ).map(([icon, tk, sk], i) => (
             <li
               key={tk}
-              className="rounded-2xl border border-line bg-surface px-4 py-4 text-center"
+              data-reveal
+              style={stepDelay(i)}
+              className="reveal rounded-2xl border border-line bg-surface p-5 shadow-[var(--shadow)] transition-colors hover:border-line-strong sm:p-6"
             >
-              <p className="font-display text-base font-bold">{t(tk)}</p>
-              <p className="mt-0.5 text-sm text-muted">{t(sk)}</p>
+              <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-accent-soft text-accent ring-1 ring-inset ring-accent/15">
+                <BenefitIcon name={icon} />
+              </span>
+              <p className="mt-4 font-display text-lg font-bold">{t(tk)}</p>
+              <p className="mt-1.5 text-sm leading-relaxed text-muted">{t(sk)}</p>
             </li>
           ))}
         </ul>
       </section>
 
-      {/* Featured converters */}
-      <section id="tools" className="mx-auto max-w-5xl scroll-mt-20 px-5 pt-16">
-        <h2 className="font-mono text-xs uppercase tracking-wider text-muted">
-          {t("home.popular")}
-        </h2>
-        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {FEATURED.map((slug) => (
-            <ConverterCard key={slug} slug={slug} />
+      {/* Popular conversions */}
+      <section id="tools" className="mx-auto max-w-5xl scroll-mt-20 px-5 pt-16 sm:pt-24">
+        <SectionHead title={t("home.popular")} sub={t("home.popularSub")} />
+        <div className="mt-8 grid grid-cols-1 gap-3 sm:mt-10 sm:grid-cols-2 lg:grid-cols-3">
+          {FEATURED.map((slug, i) => (
+            <div key={slug} className="reveal" data-reveal style={stepDelay(i)}>
+              <ConverterCard slug={slug} />
+            </div>
           ))}
         </div>
       </section>
 
-      {/* Crop callout */}
-      <section className="mx-auto max-w-5xl px-5 pt-6">
+      {/* Crop callout — the standout mid-page CTA */}
+      <section className="reveal mx-auto max-w-5xl px-5 pt-16 sm:pt-24" data-reveal>
         <Link
           href="/crop/"
-          className="group relative flex flex-col items-start gap-4 overflow-hidden rounded-3xl border border-line bg-surface-2 p-8 sm:flex-row sm:items-center sm:justify-between"
+          className="group relative flex flex-col items-start gap-6 overflow-hidden rounded-3xl border border-line bg-surface-2 p-7 shadow-[var(--shadow)] transition-all duration-200 hover:-translate-y-0.5 hover:border-line-strong sm:flex-row sm:items-center sm:justify-between sm:p-10"
         >
-          <div className="atmosphere opacity-70" />
-          <div className="max-w-lg">
-            <span className="font-mono text-[11px] uppercase tracking-wider text-accent">
+          <div className="atmosphere opacity-90" />
+          {/* Crop-mark corners — a signature nod to the tool. */}
+          <span
+            aria-hidden
+            className="pointer-events-none absolute left-5 top-5 hidden h-5 w-5 rounded-tl-md border-l-2 border-t-2 border-accent/40 transition-colors group-hover:border-accent sm:block"
+          />
+          <span
+            aria-hidden
+            className="pointer-events-none absolute right-5 top-5 hidden h-5 w-5 rounded-tr-md border-r-2 border-t-2 border-accent/40 transition-colors group-hover:border-accent sm:block"
+          />
+          <span
+            aria-hidden
+            className="pointer-events-none absolute bottom-5 left-5 hidden h-5 w-5 rounded-bl-md border-b-2 border-l-2 border-accent/40 transition-colors group-hover:border-accent sm:block"
+          />
+          <span
+            aria-hidden
+            className="pointer-events-none absolute bottom-5 right-5 hidden h-5 w-5 rounded-br-md border-b-2 border-r-2 border-accent/40 transition-colors group-hover:border-accent sm:block"
+          />
+          <div className="relative max-w-lg">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-accent px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-white">
               {t("home.new")}
             </span>
-            <h3 className="mt-1 font-display text-2xl font-extrabold tracking-tight">
+            <h3 className="mt-3 break-keep font-display text-2xl font-extrabold tracking-tight sm:text-[1.9rem]">
               {t("home.cropTitle")}
             </h3>
-            <p className="mt-2 text-muted">{t("home.cropDesc")}</p>
+            <p className="mt-2.5 break-keep leading-relaxed text-muted">{t("home.cropDesc")}</p>
           </div>
-          <span className="shrink-0 rounded-xl bg-ink px-5 py-3 font-medium text-bg transition-transform group-hover:-translate-y-0.5">
+          <span className="relative inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-ink px-5 py-3 font-semibold text-bg shadow-[var(--shadow)] transition-transform group-hover:-translate-y-0.5">
             {t("home.cropCta")}
+            <Chevron className="transition-transform group-hover:translate-x-0.5" />
           </span>
         </Link>
       </section>
 
+      {/* How it works */}
+      <section className="mx-auto max-w-5xl px-5 pt-16 sm:pt-24">
+        <SectionHead title={t("home.howto")} />
+        <ol className="mt-8 grid grid-cols-1 gap-4 sm:mt-10 sm:grid-cols-3">
+          {(
+            [
+              ["1", "step.1t", "step.1d"],
+              ["2", "step.2t", "step.2d"],
+              ["3", "step.3t", "step.3d"],
+            ] as const
+          ).map(([n, tk, dk], i) => (
+            <li
+              key={n}
+              data-reveal
+              style={stepDelay(i)}
+              className="reveal relative overflow-hidden rounded-2xl border border-line bg-surface p-6 shadow-[var(--shadow)]"
+            >
+              <span
+                aria-hidden
+                className="pointer-events-none absolute -right-1 -top-3 select-none font-display text-[5.5rem] font-extrabold leading-none text-line-strong"
+              >
+                {n}
+              </span>
+              <span className="relative grid h-10 w-10 place-items-center rounded-full bg-accent font-display text-base font-bold text-white ring-4 ring-accent-soft">
+                {n}
+              </span>
+              <p className="relative mt-4 font-display text-lg font-bold">{t(tk)}</p>
+              <p className="relative mt-1.5 text-sm leading-relaxed text-muted">{t(dk)}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
+
       {/* All tools */}
-      <section className="mx-auto max-w-5xl px-5 pt-16">
-        <h2 className="font-mono text-xs uppercase tracking-wider text-muted">
-          {t("home.all", { n: CONVERSIONS.length })}
-        </h2>
-        <ul className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {CONVERSIONS.map((c) => {
+      <section className="mx-auto max-w-5xl px-5 pb-20 pt-16 sm:pb-28 sm:pt-24">
+        <SectionHead title={t("home.all", { n: CONVERSIONS.length })} />
+        <ul className="mt-8 grid grid-cols-1 gap-2.5 sm:mt-10 sm:grid-cols-2 lg:grid-cols-3">
+          {CONVERSIONS.map((c, i) => {
             const slug = conversionSlug(c);
             return (
-              <li key={slug}>
+              <li key={slug} className="reveal" data-reveal style={rowDelay(i)}>
                 <Link
                   href={`/${slug}/`}
-                  className="group flex items-center gap-2 rounded-xl border border-transparent px-3 py-2.5 transition-colors hover:border-line hover:bg-surface"
+                  className="group flex items-center justify-between gap-2 rounded-xl border border-line bg-surface px-4 py-3 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent hover:shadow-[var(--shadow)]"
                 >
-                  <span className="font-medium">{FORMATS[c.from].label}</span>
-                  <span className="text-accent">→</span>
-                  <span className="font-medium">{FORMATS[c.to].label}</span>
+                  <span className="flex items-center gap-2 text-[15px] font-medium">
+                    {FORMATS[c.from].label}
+                    <span aria-hidden className="text-accent">
+                      →
+                    </span>
+                    {FORMATS[c.to].label}
+                  </span>
+                  <Chevron className="-translate-x-1 text-accent opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100" />
                 </Link>
               </li>
             );
           })}
         </ul>
-      </section>
-
-      {/* How it works */}
-      <section className="mx-auto max-w-5xl px-5 py-16">
-        <h2 className="font-mono text-xs uppercase tracking-wider text-muted">
-          {t("home.howto")}
-        </h2>
-        <ol className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
-          {(
-            [
-              ["01", "step.1t", "step.1d"],
-              ["02", "step.2t", "step.2d"],
-              ["03", "step.3t", "step.3d"],
-            ] as const
-          ).map(([n, tk, dk]) => (
-            <li key={n} className="rounded-2xl border border-line bg-surface p-6">
-              <span className="font-mono text-sm text-accent">{n}</span>
-              <p className="mt-2 font-display text-lg font-bold">{t(tk)}</p>
-              <p className="mt-1 text-sm text-muted">{t(dk)}</p>
-            </li>
-          ))}
-        </ol>
       </section>
     </main>
   );

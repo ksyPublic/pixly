@@ -1,22 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 type Theme = "light" | "dark";
 
-export default function ThemeToggle() {
-  const [theme, setTheme] = useState<Theme | null>(null);
+// Resolve the active theme from the DOM (set pre-hydration by an inline script)
+// or the OS preference. Runs only in the browser; the build-time render returns
+// null so the server markup is stable and hydration mismatches are suppressed.
+function readTheme(): Theme | null {
+  if (typeof document === "undefined") return null;
+  const attr = document.documentElement.getAttribute("data-theme");
+  return attr === "dark" || attr === "light"
+    ? attr
+    : window.matchMedia("(prefers-color-scheme: dark)").matches
+      ? "dark"
+      : "light";
+}
 
-  useEffect(() => {
-    const attr = document.documentElement.getAttribute("data-theme");
-    const cur: Theme =
-      attr === "dark" || attr === "light"
-        ? attr
-        : window.matchMedia("(prefers-color-scheme: dark)").matches
-          ? "dark"
-          : "light";
-    setTheme(cur);
-  }, []);
+export default function ThemeToggle() {
+  const [theme, setTheme] = useState<Theme | null>(readTheme);
 
   function toggle() {
     const next: Theme = theme === "dark" ? "light" : "dark";

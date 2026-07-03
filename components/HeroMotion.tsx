@@ -5,10 +5,10 @@ import { useEffect, useRef } from "react";
 /**
  * HeroMotion — a soft, warm "aurora" glow rendered on <canvas>.
  *
- * Direction: a slow, luminous field of tangerine/amber light that drifts
- * behind the hero headline, giving a premium ambient feel with zero heavy
- * libs. Colours are read live from the design tokens (--accent / --bg), so it
- * adapts to light paper and dark ink themes, and to the `data-theme` toggle.
+ * Direction: a slow, luminous field of brand-blue light that drifts behind the
+ * hero headline, giving a premium ambient feel with zero heavy libs. Colours
+ * are read live from the design tokens (--accent / --bg), so it adapts to light
+ * paper and dark ink themes, and to the `data-theme` toggle.
  *
  * It must read as a *glow that dissolves into the page*, never as a hard-edged
  * panel. That's why the layer is masked with a centred oval vignette that fades
@@ -145,11 +145,11 @@ export default function HeroMotion() {
     // words rather than a filled rectangle. The vignette mask erases whatever
     // reaches the corners.
     const blobs: Blob[] = [
-      { role: "accent", cx: 0.32, cy: 0.34, ax: 0.09, ay: 0.06, r: 0.4, rPulse: 0.04, speed: 0.05, ratio: 0.8, depth: 0.05, weight: 1.0, phX: 0.0, phY: 1.7, phR: 0.4, color: { r: 255, g: 90, b: 44 } },
-      { role: "gold", cx: 0.68, cy: 0.3, ax: 0.08, ay: 0.06, r: 0.38, rPulse: 0.04, speed: 0.043, ratio: 1.15, depth: 0.035, weight: 0.9, phX: 2.1, phY: 0.6, phR: 1.9, color: { r: 255, g: 90, b: 44 } },
-      { role: "ember", cx: 0.52, cy: 0.56, ax: 0.11, ay: 0.08, r: 0.44, rPulse: 0.05, speed: 0.037, ratio: 0.9, depth: 0.06, weight: 0.9, phX: 4.2, phY: 3.3, phR: 2.7, color: { r: 255, g: 90, b: 44 } },
-      { role: "peach", cx: 0.23, cy: 0.6, ax: 0.07, ay: 0.07, r: 0.3, rPulse: 0.04, speed: 0.06, ratio: 1.2, depth: 0.08, weight: 0.65, phX: 1.1, phY: 5.0, phR: 0.9, color: { r: 255, g: 90, b: 44 } },
-      { role: "rose", cx: 0.79, cy: 0.56, ax: 0.06, ay: 0.07, r: 0.32, rPulse: 0.04, speed: 0.05, ratio: 0.7, depth: 0.05, weight: 0.7, phX: 5.4, phY: 2.2, phR: 3.6, color: { r: 255, g: 90, b: 44 } },
+      { role: "accent", cx: 0.32, cy: 0.34, ax: 0.09, ay: 0.06, r: 0.4, rPulse: 0.04, speed: 0.05, ratio: 0.8, depth: 0.05, weight: 1.0, phX: 0.0, phY: 1.7, phR: 0.4, color: { r: 37, g: 99, b: 235 } },
+      { role: "gold", cx: 0.68, cy: 0.3, ax: 0.08, ay: 0.06, r: 0.38, rPulse: 0.04, speed: 0.043, ratio: 1.15, depth: 0.035, weight: 0.9, phX: 2.1, phY: 0.6, phR: 1.9, color: { r: 37, g: 99, b: 235 } },
+      { role: "ember", cx: 0.52, cy: 0.56, ax: 0.11, ay: 0.08, r: 0.44, rPulse: 0.05, speed: 0.037, ratio: 0.9, depth: 0.06, weight: 0.9, phX: 4.2, phY: 3.3, phR: 2.7, color: { r: 37, g: 99, b: 235 } },
+      { role: "peach", cx: 0.23, cy: 0.6, ax: 0.07, ay: 0.07, r: 0.3, rPulse: 0.04, speed: 0.06, ratio: 1.2, depth: 0.08, weight: 0.65, phX: 1.1, phY: 5.0, phR: 0.9, color: { r: 37, g: 99, b: 235 } },
+      { role: "rose", cx: 0.79, cy: 0.56, ax: 0.06, ay: 0.07, r: 0.32, rPulse: 0.04, speed: 0.05, ratio: 0.7, depth: 0.05, weight: 0.7, phX: 5.4, phY: 2.2, phR: 3.6, color: { r: 37, g: 99, b: 235 } },
     ];
 
     let width = 1;
@@ -169,7 +169,7 @@ export default function HeroMotion() {
 
     function computePalette(): Record<Role, RGB> {
       const cs = getComputedStyle(document.documentElement);
-      const acc = parseColor(cs.getPropertyValue("--accent")) ?? { r: 255, g: 90, b: 44 };
+      const acc = parseColor(cs.getPropertyValue("--accent")) ?? { r: 37, g: 99, b: 235 };
       const bg = parseColor(cs.getPropertyValue("--bg"));
       if (bg) {
         const lum = (0.299 * bg.r + 0.587 * bg.g + 0.114 * bg.b) / 255;

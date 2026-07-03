@@ -5,7 +5,7 @@ import {
   createElement,
   useContext,
   useEffect,
-  useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 
@@ -16,52 +16,73 @@ export type Locale = "ko" | "en";
 const DICT = {
   ko: {
     "nav.convert": "변환",
-    "nav.crop": "크롭",
+    "nav.crop": "자르기",
     "nav.about": "소개",
 
-    "home.eyebrow": "파일은 브라우저를 벗어나지 않습니다",
-    "home.h1a": "이미지 변환과 크롭,",
-    "home.h1b": "완전히 사적으로.",
+    "home.eyebrow": "업로드 없이 · 내 기기 안에서 안전하게",
+    "home.h1a": "사진 변환도 자르기도,",
+    "home.h1b": "몇 초면 끝나요",
     "home.sub":
-      "브라우저에서 100% 돌아가는 빠른 이미지 도구. 업로드도, 계정도, 제한도 없습니다. 사진이 서버에 닿지 않아요.",
-    "home.ctaBrowse": "변환기 둘러보기",
-    "home.ctaCrop": "스마트 크롭 →",
-    "home.popular": "인기 변환기",
-    "home.all": "전체 {n}개 변환기",
-    "home.howto": "작동 방식",
-    "home.new": "신규",
-    "home.cropTitle": "스마트 크롭",
+      "아이폰 사진(HEIC)이나 PNG·JPG처럼 형식이 서로 달라 번거로웠던 이미지를 클릭 몇 번으로 원하는 형식으로 바꿔요. 설치도 회원가입도 필요 없고, 파일은 내 기기 밖으로 나가지 않아요.",
+    "home.ctaBrowse": "변환 도구 둘러보기",
+    "home.ctaCrop": "사진 자르기",
+    "home.heroReassure": "워터마크 없음 · 개수 제한 없음 · 100% 브라우저에서 처리",
+    "home.formatsLabel": "이런 형식을 다뤄요",
+    "home.why": "왜 Pixly일까요",
+    "home.whySub": "누구나 부담 없이 쓸 수 있게 만들었어요.",
+    "home.popular": "자주 쓰는 변환",
+    "home.popularSub": "가장 많이 찾는 변환을 모았어요.",
+    "home.all": "전체 변환 도구 {n}개",
+    "home.toolsReassure": "파일은 내 기기 밖으로 나가지 않아요",
+    "home.howto": "사용법은 아주 간단해요",
+    "home.new": "새 기능",
+    "home.cropTitle": "똑똑한 자동 자르기",
     "home.cropDesc":
-      "상품이나 인물 사진을 올리면 Pixly가 피사체를 찾아 원하는 비율로 잘라줍니다. 손으로 다듬고 클릭 한 번에 저장하세요.",
-    "home.cropCta": "사용해보기 →",
+      "상품 사진이나 인물 사진을 불러오면 중요한 부분을 알아서 찾아 원하는 비율로 잘라드려요. 직접 세밀하게 다듬고 바로 저장하세요.",
+    "home.cropCta": "지금 써보기 →",
+    "home.startTitle": "지금 바로 변환해 보세요",
+    "home.startSub": "파일을 끌어다 놓으면 브라우저 안에서 바로 변환돼요.",
+    "home.formatHelp": "잘 모르겠다면 JPG를 고르세요 — 거의 모든 곳에서 열려요.",
 
-    "trust.private": "사적",
-    "trust.privateSub": "아무것도 업로드 안 함",
-    "trust.nosignup": "가입 불필요",
-    "trust.nosignupSub": "계정 없이",
-    "trust.unlimited": "무제한",
-    "trust.unlimitedSub": "용량·개수 제한 없음",
-    "trust.instant": "즉시",
-    "trust.instantSub": "내 기기에서 처리",
+    "benefit.heic-to-jpg": "아이폰 사진을 어디서나 열리는 형식으로",
+    "benefit.png-to-webp": "화질은 그대로, 용량은 가볍게",
+    "benefit.heic-to-png": "아이폰 사진을 손실 없이 또렷하게",
+    "benefit.webp-to-jpg": "어디서나 열리는 사진으로 되돌리기",
+    "benefit.png-to-jpg": "용량 줄여서 공유하기 좋게",
+    "benefit.avif-to-jpg": "최신 형식을 익숙한 사진으로",
 
-    "step.1t": "파일 올리기",
-    "step.1d": "아무 이미지나 선택하면 브라우저로 바로 읽힙니다.",
-    "step.2t": "기기에서 변환",
-    "step.2d": "WebAssembly와 Canvas로 내 기기에서 처리됩니다.",
-    "step.3t": "다운로드",
-    "step.3d": "결과를 저장하세요. 아무것도 전송되지 않았습니다.",
+    "trust.private": "안전해요",
+    "trust.privateSub": "사진이 서버에 올라가지 않아요",
+    "trust.nosignup": "가입이 필요 없어요",
+    "trust.nosignupSub": "바로 사용할 수 있어요",
+    "trust.unlimited": "제한이 없어요",
+    "trust.unlimitedSub": "크기도 개수도 자유롭게",
+    "trust.instant": "빠르게 끝나요",
+    "trust.instantSub": "내 기기에서 바로 처리돼요",
+
+    "step.1t": "사진 고르기",
+    "step.1d": "바꾸고 싶은 사진을 끌어다 놓거나 클릭해서 선택하세요.",
+    "step.2t": "자동으로 변환",
+    "step.2d": "복잡한 설정 없이 내 기기 안에서 바로 처리돼요.",
+    "step.3t": "저장하기",
+    "step.3d": "바뀐 파일을 내려받으면 끝이에요. 아무것도 전송되지 않아요.",
 
     "conv.dropOpen": "{fmt} 파일을 놓거나 클릭해서 선택",
     "conv.dropSub": "브라우저에서 즉시 변환 · 업로드 없음",
     "conv.to": "변환 대상",
     "conv.quality": "품질",
+    "conv.modeQuality": "품질",
+    "conv.modeSize": "용량 맞추기",
+    "conv.targetSize": "목표 용량",
     "conv.converted": "{done}/{total} 변환됨",
     "conv.clear": "모두 지우기",
     "conv.converting": "변환 중…",
     "conv.download": "다운로드",
+    "conv.downloadAll": "전체 ZIP 다운로드 ({n})",
+    "conv.zipping": "압축하는 중…",
     "conv.unsupported": "지원하지 않는 파일 형식입니다.",
 
-    "footer.tagline": "© 2026 Pixly · 사적인 브라우저 내 이미지 도구.",
+    "footer.tagline": "© 2026 Pixly · 브라우저 안에서 안전하게 쓰는 이미지 도구.",
     "footer.about": "소개",
     "footer.privacy": "개인정보",
     "footer.contact": "문의",
@@ -82,6 +103,32 @@ const DICT = {
     "crop.free": "자유",
     "crop.straightenAria": "수평 보정 각도",
     "crop.straightenReset": "수평 보정 초기화",
+
+    "cropPage.h1": "스마트 이미지 자르기",
+    "cropPage.intro":
+      "사진을 불러온 뒤 원하는 비율로 자르고, 회전하거나 수평을 맞춰보세요. ‘스마트 크롭’을 누르면 Pixly가 상품이나 얼굴처럼 중요한 부분을 찾아 자동으로 맞춰드려요. 모든 작업은 내 기기 안에서 처리되고, 사진은 어디에도 올라가지 않아요.",
+    "cropPage.f1t": "피사체 인식",
+    "cropPage.f1d": "상품이나 얼굴을 자동으로 찾아요",
+    "cropPage.f2t": "원하는 비율",
+    "cropPage.f2d": "1:1, 4:5, 16:9 등 자유롭게",
+    "cropPage.f3t": "완전히 안전",
+    "cropPage.f3d": "사진이 기기 밖으로 나가지 않아요",
+    "cropPage.howH2": "이미지를 자르는 방법",
+    "cropPage.s1": "위 상자에 이미지를 끌어다 놓거나 클릭해서 선택하세요.",
+    "cropPage.s2":
+      "비율을 고르거나, 모서리와 변에 있는 8개의 손잡이를 끌어 직접 잘라요.",
+    "cropPage.s3":
+      "90° 회전, 좌우·상하 반전, 수평 보정 슬라이더로 기울어진 사진을 바로잡으세요. 결과는 실시간으로 보여요.",
+    "cropPage.s4":
+      "‘스마트 크롭’을 누르면 중요한 부분에 맞춰 자동으로 잘라줘요. 필요하면 직접 다듬으세요.",
+    "cropPage.s5":
+      "형식을 고르고 저장하면 회전·수평 보정·반전·자르기가 원본 화질 그대로 반영돼요. 아무것도 업로드되지 않아요.",
+    "cropPage.whatH2": "스마트 크롭이 뭔가요?",
+    "cropPage.whatP":
+      "대부분의 도구는 사진 가운데를 그대로 잘라요. 스마트 크롭은 사진의 윤곽·명암·피부톤을 살펴 정말 중요한 부분을 찾고, 그 위치를 중심으로 잡아줘요. 상품 사진, 프로필 사진, 썸네일처럼 피사체가 가운데에 있지 않을 때 특히 편리해요.",
+    "cropPage.privH2": "안전한가요?",
+    "cropPage.privP":
+      "네. 자르기와 피사체 인식 모두 내 기기의 브라우저 안에서 처리돼요. 사진이 서버로 전송되지 않아서, 페이지를 한 번 열어두면 인터넷이 끊겨도 동작해요.",
 
     "about.h1": "Pixly 소개",
     "about.p1":
@@ -125,46 +172,67 @@ const DICT = {
     "nav.crop": "Crop",
     "nav.about": "About",
 
-    "home.eyebrow": "Files never leave your browser",
-    "home.h1a": "Convert & crop images,",
-    "home.h1b": "privately.",
+    "home.eyebrow": "No uploads · safe on your own device",
+    "home.h1a": "Convert and crop images,",
+    "home.h1b": "in just seconds",
     "home.sub":
-      "A fast image toolkit that runs entirely in your browser. No uploads, no accounts, no limits — your photos never touch a server.",
+      "Turn tricky formats like HEIC, PNG and JPG into whatever you need with a couple of clicks. No install, no sign-up — and your files never leave your device.",
     "home.ctaBrowse": "Browse converters",
-    "home.ctaCrop": "Smart crop →",
-    "home.popular": "Popular converters",
-    "home.all": "All {n} converters",
-    "home.howto": "How it works",
+    "home.ctaCrop": "Crop a photo",
+    "home.heroReassure": "No watermark · No limits · 100% in your browser",
+    "home.formatsLabel": "Works with",
+    "home.why": "Why Pixly",
+    "home.whySub": "Built so anyone can use it, with zero friction.",
+    "home.popular": "Popular conversions",
+    "home.popularSub": "The conversions people reach for most.",
+    "home.all": "All {n} tools",
+    "home.toolsReassure": "Your files never leave your device",
+    "home.howto": "It couldn't be simpler",
     "home.new": "New",
-    "home.cropTitle": "Smart crop",
+    "home.cropTitle": "Smart auto-crop",
     "home.cropDesc":
-      "Drop in a product or portrait and Pixly finds the subject, then crops around it for any aspect ratio. Adjust by hand, download in a click.",
-    "home.cropCta": "Try it →",
+      "Drop in a product shot or portrait and Pixly finds what matters, then crops it to any ratio you like. Fine-tune by hand and save in one click.",
+    "home.cropCta": "Try it now →",
+    "home.startTitle": "Convert right here",
+    "home.startSub": "Drop a file — it converts instantly, right in your browser.",
+    "home.formatHelp": "Not sure which to pick? Choose JPG — it opens almost everywhere.",
 
-    "trust.private": "Private",
-    "trust.privateSub": "Nothing is uploaded",
+    "benefit.heic-to-jpg": "iPhone photos that open anywhere",
+    "benefit.png-to-webp": "Same look, much smaller file",
+    "benefit.heic-to-png": "iPhone photos, sharp and lossless",
+    "benefit.webp-to-jpg": "Back to a photo that opens everywhere",
+    "benefit.png-to-jpg": "Lighter files, easy to share",
+    "benefit.avif-to-jpg": "New format into a familiar photo",
+
+    "trust.private": "Safe & private",
+    "trust.privateSub": "Photos are never uploaded",
     "trust.nosignup": "No sign-up",
-    "trust.nosignupSub": "No account, ever",
-    "trust.unlimited": "Unlimited",
-    "trust.unlimitedSub": "No size or count caps",
-    "trust.instant": "Instant",
-    "trust.instantSub": "Runs on your device",
+    "trust.nosignupSub": "Start using it right away",
+    "trust.unlimited": "No limits",
+    "trust.unlimitedSub": "Any size, any number",
+    "trust.instant": "Fast",
+    "trust.instantSub": "Runs right on your device",
 
-    "step.1t": "Drop a file",
-    "step.1d": "Pick any image. It's read straight into your browser.",
-    "step.2t": "It converts locally",
-    "step.2d": "The work happens on your device using WebAssembly and Canvas.",
-    "step.3t": "Download",
-    "step.3d": "Save the result. Nothing was ever sent anywhere.",
+    "step.1t": "Pick a photo",
+    "step.1d": "Drag in the image you want to change, or click to choose one.",
+    "step.2t": "It converts automatically",
+    "step.2d": "No fiddly settings — it's handled right on your device.",
+    "step.3t": "Save it",
+    "step.3d": "Download the new file and you're done. Nothing was ever sent.",
 
     "conv.dropOpen": "Drop {fmt} files here, or click to browse",
     "conv.dropSub": "Converted instantly in your browser · never uploaded",
     "conv.to": "Convert to",
     "conv.quality": "Quality",
+    "conv.modeQuality": "Quality",
+    "conv.modeSize": "Target size",
+    "conv.targetSize": "Target size",
     "conv.converted": "{done}/{total} converted",
     "conv.clear": "Clear all",
     "conv.converting": "Converting…",
     "conv.download": "Download",
+    "conv.downloadAll": "Download all as ZIP ({n})",
+    "conv.zipping": "Zipping…",
     "conv.unsupported": "Unsupported file type.",
 
     "footer.tagline": "© 2026 Pixly · Private, in-browser image tools.",
@@ -188,6 +256,32 @@ const DICT = {
     "crop.free": "Free",
     "crop.straightenAria": "Straighten angle",
     "crop.straightenReset": "Reset straighten",
+
+    "cropPage.h1": "Smart Image Cropper",
+    "cropPage.intro":
+      "Drop in a photo, then crop, rotate, straighten, or flip it to any aspect ratio. Hit Smart crop and Pixly finds the subject — a product or a face — and frames it for you. Everything runs on your device, and your image is never uploaded.",
+    "cropPage.f1t": "Subject-aware",
+    "cropPage.f1d": "Finds the product or face",
+    "cropPage.f2t": "Any ratio",
+    "cropPage.f2d": "1:1, 4:5, 16:9, and more",
+    "cropPage.f3t": "Fully private",
+    "cropPage.f3d": "Nothing leaves your device",
+    "cropPage.howH2": "How to crop an image",
+    "cropPage.s1": "Drop your image into the box above, or click to browse.",
+    "cropPage.s2":
+      "Pick an aspect ratio, or drag any of the 8 handles — corners and edge midpoints — to crop by hand.",
+    "cropPage.s3":
+      "Rotate 90°, flip, or nudge the straighten slider to level a tilted horizon. Everything previews live.",
+    "cropPage.s4":
+      "Click Smart crop to auto-frame the subject, then fine-tune if you want.",
+    "cropPage.s5":
+      "Choose a format and download. Your rotation, straighten, flips, and crop are all baked in at full resolution. Nothing is uploaded.",
+    "cropPage.whatH2": "What is smart crop?",
+    "cropPage.whatP":
+      "Most croppers just chop the middle of the image. Smart crop looks at the picture — edges, contrast, and skin tones — to find the region that actually matters, then centers the frame there. It's handy for product shots, profile pictures, and thumbnails where the subject isn't dead center.",
+    "cropPage.privH2": "Is it private?",
+    "cropPage.privP":
+      "Yes. The cropping and subject detection both run locally in your browser. Your photo is never sent to a server, so it works even offline once the page has loaded.",
 
     "about.h1": "About Pixly",
     "about.p1":
@@ -251,17 +345,51 @@ const I18nContext = createContext<I18n>({
   t: (k) => DICT.ko[k] ?? String(k),
 });
 
-export function I18nProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>("ko"); // default Korean
+const STORAGE_KEY = "pixly-lang";
 
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("pixly-lang");
-      if (saved === "ko" || saved === "en") setLocaleState(saved);
-    } catch {
-      /* ignore */
-    }
-  }, []);
+// Locale lives in localStorage (an external store). useSyncExternalStore reads
+// it without a setState-in-effect: during SSR/hydration it uses the server
+// snapshot ("ko", the default) so the markup matches, then switches to the
+// persisted value right after mount. Static-export safe — no window on the server.
+const localeListeners = new Set<() => void>();
+
+function readLocale(): Locale {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved === "ko" || saved === "en") return saved;
+  } catch {
+    /* ignore */
+  }
+  return "ko"; // default Korean
+}
+
+function subscribeLocale(onChange: () => void): () => void {
+  localeListeners.add(onChange);
+  const onStorage = (e: StorageEvent) => {
+    if (e.key === STORAGE_KEY) onChange();
+  };
+  window.addEventListener("storage", onStorage);
+  return () => {
+    localeListeners.delete(onChange);
+    window.removeEventListener("storage", onStorage);
+  };
+}
+
+function getServerLocale(): Locale {
+  return "ko";
+}
+
+function setLocale(l: Locale) {
+  try {
+    localStorage.setItem(STORAGE_KEY, l);
+  } catch {
+    /* ignore */
+  }
+  localeListeners.forEach((cb) => cb());
+}
+
+export function I18nProvider({ children }: { children: ReactNode }) {
+  const locale = useSyncExternalStore(subscribeLocale, readLocale, getServerLocale);
 
   useEffect(() => {
     try {
@@ -270,15 +398,6 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       /* ignore */
     }
   }, [locale]);
-
-  function setLocale(l: Locale) {
-    setLocaleState(l);
-    try {
-      localStorage.setItem("pixly-lang", l);
-    } catch {
-      /* ignore */
-    }
-  }
 
   const t = (key: TKey, params?: Params) =>
     format(DICT[locale][key] ?? DICT.en[key] ?? String(key), params);

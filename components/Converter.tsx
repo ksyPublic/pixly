@@ -9,6 +9,8 @@ import {
   detectFormat,
 } from "@/lib/conversions";
 import { convertImage, formatBytes, outputFilename } from "@/lib/convert";
+import { compressToTargetSize, supportsTargetSize } from "@/lib/compress";
+import { dedupeName, makeZip } from "@/lib/zip";
 import { useI18n } from "@/lib/i18n";
 
 interface Item {
@@ -22,14 +24,31 @@ interface Item {
   error?: string;
 }
 
+type Settings =
+  | { mode: "quality"; quality: number }
+  | { mode: "size"; targetBytes: number };
+
 export default function Converter({ from, to }: { from: Format; to: Format }) {
   const [target, setTarget] = useState<Format>(to);
   const [items, setItems] = useState<Item[]>([]);
   const [quality, setQuality] = useState(0.92);
+  const [mode, setMode] = useState<"quality" | "size">("quality");
+  const [targetKB, setTargetKB] = useState(300);
+  const [zipping, setZipping] = useState(false);
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const lossy = FORMATS[target].lossy;
+  const canSize = supportsTargetSize(target);
+  const effMode: "quality" | "size" = canSize ? mode : "quality";
   const { t } = useI18n();
+
+  const buildSettings = useCallback(
+    (): Settings =>
+      effMode === "size"
+        ? { mode: "size", targetBytes: Math.max(1, targetKB) * 1024 }
+        : { mode: "quality", quality },
+    [effMode, targetKB, quality],
+  );
 
   // Revoke object URLs on unmount to avoid leaking blob memory.
   const itemsRef = useRef(items);
@@ -40,10 +59,22 @@ export default function Converter({ from, to }: { from: Format; to: Format }) {
     };
   }, []);
 
+  // Per-item generation token. Every (re)conversion bumps the item's gen; a
+  // conversion that finishes after a newer one was kicked off is stale and its
+  // result is discarded (and its blob revoked) instead of clobbering the fresh
+  // output and leaking the URL.
+  const genRef = useRef(new Map<string, number>());
+
   const runConvert = useCallback(
-    async (id: string, file: File, tgt: Format, q: number) => {
+    async (id: string, file: File, tgt: Format, settings: Settings, gen: number) => {
       try {
-        const blob = await convertImage(file, tgt, { quality: q });
+        const blob =
+          settings.mode === "size" && supportsTargetSize(tgt)
+            ? (await compressToTargetSize(file, tgt, settings.targetBytes)).blob
+            : await convertImage(file, tgt, {
+                quality: settings.mode === "quality" ? settings.quality : undefined,
+              });
+        if (genRef.current.get(id) !== gen) return; // superseded — drop it
         const outUrl = URL.createObjectURL(blob);
         setItems((prev) =>
           prev.map((it) =>
@@ -59,6 +90,7 @@ export default function Converter({ from, to }: { from: Format; to: Format }) {
           ),
         );
       } catch (e) {
+        if (genRef.current.get(id) !== gen) return; // superseded — ignore error
         setItems((prev) =>
           prev.map((it) =>
             it.id === id
@@ -79,6 +111,7 @@ export default function Converter({ from, to }: { from: Format; to: Format }) {
     (fileList: FileList | File[]) => {
       const files = Array.from(fileList);
       if (files.length === 0) return;
+      const settings = buildSettings();
       const newItems: Item[] = files.map((file) => {
         const sourceFmt = detectFormat(file);
         return {
@@ -90,35 +123,84 @@ export default function Converter({ from, to }: { from: Format; to: Format }) {
         };
       });
       setItems((prev) => [...prev, ...newItems]);
-      newItems.forEach(
-        (it) => it.sourceFmt && runConvert(it.id, it.file, target, quality),
-      );
+      newItems.forEach((it) => {
+        if (!it.sourceFmt) return;
+        genRef.current.set(it.id, 1);
+        runConvert(it.id, it.file, target, settings, 1);
+      });
     },
-    [target, quality, runConvert, t],
+    [target, buildSettings, runConvert, t],
   );
 
-  // Re-encode everything when the target format or quality changes.
+  // Re-encode everything when the target format, quality, or mode changes.
+  // Side effects (URL revoke, kicking off conversions) run OUTSIDE the state
+  // updater so React StrictMode's double-invoke can't leak URLs or double-fire.
   const reconvertAll = useCallback(
-    (tgt: Format, q: number) => {
-      setItems((prev) => {
-        prev.forEach((it) => it.outUrl && URL.revokeObjectURL(it.outUrl));
-        const reset = prev.map((it) =>
-          it.sourceFmt
-            ? { ...it, status: "converting" as const, outUrl: undefined, error: undefined }
-            : it,
-        );
-        reset.forEach(
-          (it) => it.sourceFmt && runConvert(it.id, it.file, tgt, q),
-        );
-        return reset;
+    (tgt: Format, settings: Settings) => {
+      const current = itemsRef.current;
+      current.forEach((it) => it.outUrl && URL.revokeObjectURL(it.outUrl));
+      const bumped = new Map<string, number>();
+      current.forEach((it) => {
+        if (!it.sourceFmt) return;
+        const g = (genRef.current.get(it.id) ?? 0) + 1;
+        genRef.current.set(it.id, g);
+        bumped.set(it.id, g);
       });
+      setItems((prev) =>
+        prev.map((it) =>
+          it.sourceFmt
+            ? {
+                ...it,
+                status: "converting" as const,
+                outUrl: undefined,
+                outSize: undefined,
+                error: undefined,
+              }
+            : it,
+        ),
+      );
+      current.forEach(
+        (it) =>
+          it.sourceFmt &&
+          runConvert(it.id, it.file, tgt, settings, bumped.get(it.id) as number),
+      );
     },
     [runConvert],
   );
 
+  const hasItems = items.length > 0;
+
   function changeTarget(next: Format) {
     setTarget(next);
-    if (items.length > 0) reconvertAll(next, quality);
+    if (hasItems) {
+      const nextEff = supportsTargetSize(next) ? mode : "quality";
+      const settings: Settings =
+        nextEff === "size"
+          ? { mode: "size", targetBytes: Math.max(1, targetKB) * 1024 }
+          : { mode: "quality", quality };
+      reconvertAll(next, settings);
+    }
+  }
+
+  function switchMode(next: "quality" | "size") {
+    if (next === mode) return;
+    setMode(next);
+    if (hasItems) {
+      const settings: Settings =
+        next === "size"
+          ? { mode: "size", targetBytes: Math.max(1, targetKB) * 1024 }
+          : { mode: "quality", quality };
+      reconvertAll(target, settings);
+    }
+  }
+
+  function applyTargetSize() {
+    if (hasItems && effMode === "size") {
+      reconvertAll(target, {
+        mode: "size",
+        targetBytes: Math.max(1, targetKB) * 1024,
+      });
+    }
   }
 
   function clearAll() {
@@ -127,6 +209,41 @@ export default function Converter({ from, to }: { from: Format; to: Format }) {
   }
 
   const doneItems = items.filter((it) => it.status === "done");
+
+  async function downloadAllZip() {
+    const done = itemsRef.current.filter(
+      (it) => it.status === "done" && it.outUrl && it.outName,
+    );
+    if (done.length === 0) return;
+    setZipping(true);
+    try {
+      const used = new Set<string>();
+      const named = done.map((it) => ({
+        it,
+        name: dedupeName(it.outName as string, used),
+      }));
+      const entries = await Promise.all(
+        named.map(async ({ it, name }) => {
+          const res = await fetch(it.outUrl as string);
+          return { name, data: new Uint8Array(await res.arrayBuffer()) };
+        }),
+      );
+      const zip = makeZip(entries);
+      const url = URL.createObjectURL(zip);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "pixly-images.zip";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch {
+      // A blob URL may have been revoked mid-zip (e.g. the user reconverted
+      // while zipping). Swallow it — the per-item downloads still work.
+    } finally {
+      setZipping(false);
+    }
+  }
 
   return (
     <div className="w-full">
@@ -186,7 +303,7 @@ export default function Converter({ from, to }: { from: Format; to: Format }) {
         <p className="mt-1 text-sm text-muted">{t("conv.dropSub")}</p>
       </div>
 
-      {/* Controls: target format + quality */}
+      {/* Controls: target format + quality / target size */}
       <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-3">
         <div className="flex items-center gap-2">
           <label htmlFor="target" className="text-sm text-muted">
@@ -206,7 +323,37 @@ export default function Converter({ from, to }: { from: Format; to: Format }) {
           </select>
         </div>
 
-        {lossy && (
+        {/* Quality ↔ Target size toggle (only where size targeting is possible) */}
+        {canSize && (
+          <div className="inline-flex rounded-lg border border-line-strong p-0.5">
+            <button
+              type="button"
+              onClick={() => switchMode("quality")}
+              aria-pressed={effMode === "quality"}
+              className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
+                effMode === "quality"
+                  ? "bg-accent text-white"
+                  : "text-muted hover:text-ink"
+              }`}
+            >
+              {t("conv.modeQuality")}
+            </button>
+            <button
+              type="button"
+              onClick={() => switchMode("size")}
+              aria-pressed={effMode === "size"}
+              className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
+                effMode === "size"
+                  ? "bg-accent text-white"
+                  : "text-muted hover:text-ink"
+              }`}
+            >
+              {t("conv.modeSize")}
+            </button>
+          </div>
+        )}
+
+        {effMode === "quality" && lossy && (
           <div className="flex flex-1 items-center gap-3">
             <label htmlFor="quality" className="text-sm text-muted">
               {t("conv.quality")}
@@ -219,8 +366,12 @@ export default function Converter({ from, to }: { from: Format; to: Format }) {
               step={0.01}
               value={quality}
               onChange={(e) => setQuality(Number(e.target.value))}
-              onMouseUp={() => items.length > 0 && reconvertAll(target, quality)}
-              onTouchEnd={() => items.length > 0 && reconvertAll(target, quality)}
+              onMouseUp={() =>
+                hasItems && reconvertAll(target, { mode: "quality", quality })
+              }
+              onTouchEnd={() =>
+                hasItems && reconvertAll(target, { mode: "quality", quality })
+              }
               className="h-1 flex-1 cursor-pointer accent-[var(--accent)]"
             />
             <span className="w-10 text-right text-sm tabular-nums text-muted">
@@ -228,21 +379,59 @@ export default function Converter({ from, to }: { from: Format; to: Format }) {
             </span>
           </div>
         )}
+
+        {effMode === "size" && (
+          <div className="flex items-center gap-2">
+            <label htmlFor="targetkb" className="text-sm text-muted">
+              {t("conv.targetSize")}
+            </label>
+            <input
+              id="targetkb"
+              type="number"
+              min={5}
+              step={10}
+              value={targetKB}
+              onChange={(e) => setTargetKB(Number(e.target.value) || 0)}
+              onBlur={applyTargetSize}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  applyTargetSize();
+                }
+              }}
+              className="w-20 rounded-lg border border-line-strong bg-surface px-3 py-1.5 text-sm font-medium tabular-nums text-ink focus:border-accent focus:outline-none"
+            />
+            <span className="text-sm text-muted">KB</span>
+          </div>
+        )}
       </div>
 
       {/* Results */}
       {items.length > 0 && (
         <div className="mt-6">
-          <div className="mb-3 flex items-center justify-between">
+          <div className="mb-3 flex items-center justify-between gap-3">
             <span className="text-sm text-muted">
               {t("conv.converted", { done: doneItems.length, total: items.length })}
             </span>
-            <button
-              onClick={clearAll}
-              className="text-sm text-muted underline-offset-2 hover:underline"
-            >
-              {t("conv.clear")}
-            </button>
+            <div className="flex items-center gap-4">
+              {doneItems.length >= 2 && (
+                <button
+                  onClick={downloadAllZip}
+                  disabled={zipping}
+                  className="rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+                >
+                  {zipping
+                    ? t("conv.zipping")
+                    : t("conv.downloadAll", { n: doneItems.length })}
+                </button>
+              )}
+              <button
+                onClick={clearAll}
+                className="text-sm text-muted underline-offset-2 hover:underline"
+              >
+                {t("conv.clear")}
+              </button>
+            </div>
           </div>
 
           <ul className="flex flex-col gap-2">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import smartcrop from "smartcrop";
 import { useI18n } from "@/lib/i18n";
 
@@ -320,7 +320,14 @@ export default function CropStudio() {
     s: number; // CSS px per image px at drag start
   } | null>(null);
 
-  const orient = natural ? orientedDims(natural, rotation) : null;
+  // Memoized so its identity is stable across renders (e.g. while dragging,
+  // which only changes `crop`). An unstable `orient` would recreate the drag
+  // callbacks every render and let the unmount-cleanup effect tear an active
+  // drag down mid-gesture.
+  const orient = useMemo(
+    () => (natural ? orientedDims(natural, rotation) : null),
+    [natural, rotation],
+  );
 
   const loadFile = useCallback((file: File | undefined) => {
     if (!file || !file.type.startsWith("image/")) return;
@@ -345,9 +352,9 @@ export default function CropStudio() {
     setNatural({ w: W, h: H });
     resetTransforms();
     setAspect(null);
-    const w = W * 0.85;
-    const h = H * 0.85;
-    setCrop({ x: (W - w) / 2, y: (H - h) / 2, w, h });
+    // Start with the whole frame selected so the crop area reads large; the
+    // user pulls a handle inward to trim.
+    setCrop({ x: 0, y: 0, w: W, h: H });
   }
 
   // ── draw the transformed preview whenever anything changes ──────────
@@ -393,8 +400,20 @@ export default function CropStudio() {
   const s = orient && dispW > 0 ? dispW / orient.oW : 0;
 
   // ── pointer interactions ────────────────────────────────────────────
-  const onPointerMove = useCallback(
-    (e: PointerEvent) => {
+  // Window listeners must be added and removed by the *same* reference, but the
+  // live logic depends on `orient`/`aspect`. So `onPointerMove`/`endDrag` are
+  // permanently-stable wrappers that delegate to refs, and the refs are
+  // refreshed in an effect (never during render). This lets a drag started
+  // under one `orient`/`aspect` still tear down with the exact references it
+  // registered — and avoids `endDrag` referencing its own name.
+  const moveImpl = useRef<(e: PointerEvent) => void>(() => {});
+  const upImpl = useRef<() => void>(() => {});
+
+  const onPointerMove = useCallback((e: PointerEvent) => moveImpl.current(e), []);
+  const endDrag = useCallback(() => upImpl.current(), []);
+
+  useEffect(() => {
+    moveImpl.current = (e: PointerEvent) => {
       const d = drag.current;
       if (!d || !orient || d.s <= 0) return;
       const { oW, oH } = orient;
@@ -411,16 +430,14 @@ export default function CropStudio() {
       if (d.handle) {
         setCrop(computeResize(d.handle, d.start, dx, dy, aspect, oW, oH));
       }
-    },
-    [orient, aspect],
-  );
-
-  const endDrag = useCallback(() => {
-    drag.current = null;
-    setDragging(false);
-    window.removeEventListener("pointermove", onPointerMove);
-    window.removeEventListener("pointerup", endDrag);
-  }, [onPointerMove]);
+    };
+    upImpl.current = () => {
+      drag.current = null;
+      setDragging(false);
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", endDrag);
+    };
+  });
 
   function startDrag(
     e: React.PointerEvent,
@@ -496,9 +513,7 @@ export default function CropStudio() {
     if (!natural) return;
     resetTransforms();
     setAspect(null);
-    const w = natural.w * 0.85;
-    const h = natural.h * 0.85;
-    setCrop({ x: (natural.w - w) / 2, y: (natural.h - h) / 2, w, h });
+    setCrop({ x: 0, y: 0, w: natural.w, h: natural.h });
   }
 
   function replaceImage() {

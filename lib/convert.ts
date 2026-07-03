@@ -20,7 +20,7 @@ function isHeic(file: File): boolean {
   return /heic|heif/i.test(file.type) || /\.(heic|heif)$/i.test(file.name);
 }
 
-async function decodeToBitmap(file: File): Promise<ImageBitmap> {
+export async function decodeToBitmap(file: File): Promise<ImageBitmap> {
   let blob: Blob = file;
   if (isHeic(file)) {
     // Browsers (except Safari) can't decode HEIC natively. Lazy-import the
@@ -30,6 +30,21 @@ async function decodeToBitmap(file: File): Promise<ImageBitmap> {
     blob = Array.isArray(out) ? out[0] : out;
   }
   return createImageBitmap(blob);
+}
+
+/** Decode ANY supported source to a bitmap. Formats the Canvas can't decode
+ *  (TIFF/PSD/ICO/TGA) are transcoded to a lossless PNG through the ImageMagick
+ *  engine first, so callers like target-size compression work for every input
+ *  format — not just the Canvas-decodable ones. */
+export async function decodeAnyToBitmap(
+  file: File,
+  source: Format | null,
+): Promise<ImageBitmap> {
+  const canvasDecodable =
+    isHeic(file) || (source != null && CANVAS_DECODE.has(source));
+  if (canvasDecodable) return decodeToBitmap(file);
+  const png = await convertWithMagick(file, "png", undefined, source);
+  return createImageBitmap(png);
 }
 
 export async function convertImage(
@@ -56,8 +71,26 @@ async function convertViaCanvas(
   target: Format,
   opts: ConvertOptions,
 ): Promise<Blob> {
-  const info = FORMATS[target];
   const bitmap = await decodeToBitmap(file);
+  try {
+    return await encodeBitmapToBlob(bitmap, target, opts.quality);
+  } finally {
+    bitmap.close?.();
+  }
+}
+
+/** Encode an already-decoded bitmap to a target format via <canvas>.
+ *  Kept separate so callers (e.g. target-size compression) can decode once
+ *  and re-encode many times without paying to decode each pass. */
+export async function encodeBitmapToBlob(
+  bitmap: ImageBitmap,
+  target: Format,
+  quality?: number,
+): Promise<Blob> {
+  const info = FORMATS[target];
+  if (!info.encodeMime) {
+    throw new Error(`${info.label} cannot be encoded via canvas.`);
+  }
   const canvas = document.createElement("canvas");
   canvas.width = bitmap.width;
   canvas.height = bitmap.height;
@@ -72,11 +105,10 @@ async function convertViaCanvas(
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
   ctx.drawImage(bitmap, 0, 0);
-  bitmap.close?.();
 
-  const quality = info.lossy ? (opts.quality ?? 0.92) : undefined;
+  const q = info.lossy ? (quality ?? 0.92) : undefined;
   const blob = await new Promise<Blob | null>((resolve) =>
-    canvas.toBlob(resolve, info.encodeMime as string, quality),
+    canvas.toBlob(resolve, info.encodeMime as string, q),
   );
   if (!blob) throw new Error(`Your browser could not encode ${info.label}.`);
   return blob;

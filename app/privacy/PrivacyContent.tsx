@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 
 export default function PrivacyContent() {
@@ -47,9 +48,9 @@ export default function PrivacyContent() {
         </h2>
         <p>
           {t("privacy.contactA")}
-          <a href="/contact/" className="text-accent underline">
+          <Link href="/contact/" className="text-accent underline">
             {t("privacy.contactLink")}
-          </a>
+          </Link>
           {t("privacy.contactB")}
         </p>
       </div>
