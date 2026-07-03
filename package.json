@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@imagemagick/magick-wasm": "^0.0.41",
     "heic2any": "^0.0.4",
     "next": "16.2.10",
     "react": "19.2.4",

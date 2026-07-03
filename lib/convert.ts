@@ -3,12 +3,18 @@
 // (lazy-loaded WASM) to decode Apple HEIC/HEIF.
 
 import type { Format } from "./conversions";
-import { FORMATS } from "./conversions";
+import { FORMATS, detectFormat } from "./conversions";
+import { convertWithMagick } from "./magick";
 
 export interface ConvertOptions {
   /** 0..1, only used by lossy encoders (JPG/WebP) */
   quality?: number;
 }
+
+// What the fast Canvas path can handle. Anything outside these sets is routed
+// to the ImageMagick engine.
+const CANVAS_DECODE = new Set<Format>(["png", "jpg", "webp", "gif", "bmp", "avif"]);
+const CANVAS_ENCODE = new Set<Format>(["jpg", "png", "webp"]);
 
 function isHeic(file: File): boolean {
   return /heic|heif/i.test(file.type) || /\.(heic|heif)$/i.test(file.name);
@@ -31,11 +37,26 @@ export async function convertImage(
   target: Format,
   opts: ConvertOptions = {},
 ): Promise<Blob> {
-  const info = FORMATS[target];
-  if (!info.encodeMime) {
-    throw new Error(`${info.label} is not a supported output format.`);
+  if (!FORMATS[target]?.output) {
+    throw new Error(`${target.toUpperCase()} is not a supported output format.`);
   }
 
+  // Route to ImageMagick unless both sides fit the fast Canvas path.
+  const source = detectFormat(file);
+  const canvasCanDecode = isHeic(file) || (source != null && CANVAS_DECODE.has(source));
+  if (!(CANVAS_ENCODE.has(target) && canvasCanDecode)) {
+    return convertWithMagick(file, target, opts.quality, source);
+  }
+
+  return convertViaCanvas(file, target, opts);
+}
+
+async function convertViaCanvas(
+  file: File,
+  target: Format,
+  opts: ConvertOptions,
+): Promise<Blob> {
+  const info = FORMATS[target];
   const bitmap = await decodeToBitmap(file);
   const canvas = document.createElement("canvas");
   canvas.width = bitmap.width;

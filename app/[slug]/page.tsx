@@ -149,6 +149,20 @@ function whyCopy(from: string, to: string): string {
       return `GIF works everywhere, but its 256-color palette makes photos look banded and inflates file size. Converting a frame to ${to} restores full color and, for JPG or WebP, cuts the size down. Note: Pixly exports the first frame, not the animation.`;
     case "BMP":
       return `BMP images are uncompressed, which makes them needlessly large — often many times bigger than they need to be. Converting to ${to} shrinks the file dramatically with no visible loss in quality.`;
+    case "TIFF":
+      return `TIFF is a high-quality format used in printing, scanning, and archiving, but it's bulky and most web apps and phones won't display it. Converting to ${to} gives you a smaller image you can actually view and share.`;
+    case "ICO":
+      return `ICO is the Windows icon format. Converting to ${to} turns it into a normal image you can open, edit, or post anywhere.`;
+    case "TGA":
+      return `TGA (Targa) shows up in games and 3D tools, but everyday apps and browsers rarely open it. Converting to ${to} makes the image work everywhere.`;
+    case "PSD":
+      return `PSD is Photoshop's working format. Converting to ${to} gives you a flattened image anyone can open without Photoshop — the layers are merged into one picture.`;
+  }
+  if (to === "TIFF") {
+    return `TIFF stores images with no compression loss, which is why print shops, scanners, and archives prefer it. Converting ${from} to TIFF gives you a high-quality master copy.`;
+  }
+  if (to === "ICO") {
+    return `ICO is the format Windows uses for app icons and favicons. Converting ${from} to ICO gives you a ready-to-use icon file.`;
   }
   if (to === "WebP") {
     return `WebP produces smaller files than ${from} at similar quality, which means faster-loading pages and less bandwidth. Every modern browser supports it.`;
