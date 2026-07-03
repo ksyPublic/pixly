@@ -2,7 +2,7 @@
 // Add an entry here and a new SEO landing page (/from-to-to) is generated
 // automatically at build time via app/[slug]/generateStaticParams.
 
-export type Format = "heic" | "png" | "jpg" | "webp";
+export type Format = "heic" | "png" | "jpg" | "webp" | "avif" | "gif" | "bmp";
 
 export interface FormatInfo {
   /** URL/file extension slug */
@@ -46,6 +46,29 @@ export const FORMATS: Record<Format, FormatInfo> = {
     accept: ".webp,image/webp",
     lossy: true,
   },
+  // Input-only formats: the browser can decode these but can't reliably
+  // encode them, so they can only be a conversion source (encodeMime: null).
+  avif: {
+    ext: "avif",
+    label: "AVIF",
+    encodeMime: null,
+    accept: ".avif,image/avif",
+    lossy: true,
+  },
+  gif: {
+    ext: "gif",
+    label: "GIF",
+    encodeMime: null,
+    accept: ".gif,image/gif",
+    lossy: false,
+  },
+  bmp: {
+    ext: "bmp",
+    label: "BMP",
+    encodeMime: null,
+    accept: ".bmp,image/bmp",
+    lossy: false,
+  },
 };
 
 export interface Conversion {
@@ -64,6 +87,13 @@ export const CONVERSIONS: Conversion[] = [
   { from: "webp", to: "png" },
   { from: "jpg", to: "webp" },
   { from: "webp", to: "jpg" },
+  { from: "avif", to: "jpg" },
+  { from: "avif", to: "png" },
+  { from: "avif", to: "webp" },
+  { from: "gif", to: "png" },
+  { from: "gif", to: "jpg" },
+  { from: "bmp", to: "jpg" },
+  { from: "bmp", to: "png" },
 ];
 
 export function conversionSlug(c: Conversion): string {

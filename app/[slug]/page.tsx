@@ -140,14 +140,21 @@ export default async function ConversionPage({
 }
 
 function whyCopy(from: string, to: string): string {
-  if (from === "HEIC") {
-    return `HEIC is Apple's default photo format on iPhone and iPad. It saves space, but many apps, websites, and Windows PCs can't open it. Converting to ${to} gives you a universally compatible image you can share, upload, or edit anywhere.`;
+  switch (from) {
+    case "HEIC":
+      return `HEIC is Apple's default photo format on iPhone and iPad. It saves space, but many apps, websites, and Windows PCs can't open it. Converting to ${to} gives you a universally compatible image you can share, upload, or edit anywhere.`;
+    case "AVIF":
+      return `AVIF is one of the newest and most efficient image formats, but support is still catching up — plenty of apps, editors, and older browsers can't open it yet. Converting to ${to} gives you a file that opens everywhere.`;
+    case "GIF":
+      return `GIF works everywhere, but its 256-color palette makes photos look banded and inflates file size. Converting a frame to ${to} restores full color and, for JPG or WebP, cuts the size down. Note: Pixly exports the first frame, not the animation.`;
+    case "BMP":
+      return `BMP images are uncompressed, which makes them needlessly large — often many times bigger than they need to be. Converting to ${to} shrinks the file dramatically with no visible loss in quality.`;
   }
   if (to === "WebP") {
-    return `WebP produces significantly smaller files than ${from} at similar quality, which means faster-loading web pages and less bandwidth. It's supported by every modern browser.`;
+    return `WebP produces smaller files than ${from} at similar quality, which means faster-loading pages and less bandwidth. Every modern browser supports it.`;
   }
   if (from === "WebP") {
     return `WebP is great for the web, but some older tools and apps don't support it. Converting to ${to} gives you a format that works everywhere.`;
   }
-  return `Converting ${from} to ${to} changes how the image is stored so it fits your needs — whether that's broader compatibility, smaller file size, or support for transparency.`;
+  return `Converting ${from} to ${to} changes how the image is stored to fit your needs — broader compatibility, smaller file size, or transparency support.`;
 }
