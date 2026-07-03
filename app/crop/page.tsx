@@ -16,10 +16,10 @@ export default function CropPage() {
         Smart Image Cropper
       </h1>
       <p className="mt-3 max-w-2xl text-muted">
-        Drop in a photo and crop it to any aspect ratio. Hit{" "}
-        <span className="font-medium text-ink">Smart crop</span> and Pixly finds
-        the subject — a product or a face — and frames it for you. Everything
-        runs in your browser; your image is never uploaded.
+        Drop in a photo, then crop, rotate, straighten, and flip it to any aspect
+        ratio. Hit <span className="font-medium text-ink">Smart crop</span> and
+        Pixly finds the subject — a product or a face — and frames it for you.
+        Everything runs in your browser; your image is never uploaded.
       </p>
 
       <div className="mt-8">
@@ -47,12 +47,22 @@ export default function CropPage() {
         </h2>
         <ol className="ml-5 list-decimal space-y-1">
           <li>Drop your image into the box above, or click to browse.</li>
-          <li>Pick an aspect ratio, or drag the corners to crop by hand.</li>
+          <li>
+            Pick an aspect ratio, or drag any of the 8 handles — corners and edge
+            midpoints — to crop by hand.
+          </li>
+          <li>
+            Rotate 90°, flip, or nudge the straighten slider to level a tilted
+            horizon. Everything previews live.
+          </li>
           <li>
             Click <strong>Smart crop</strong> to auto-frame the subject, then
             fine-tune if you want.
           </li>
-          <li>Choose a format and download. Nothing is uploaded.</li>
+          <li>
+            Choose a format and download. Your rotation, straighten, flips, and
+            crop are all baked in at full resolution. Nothing is uploaded.
+          </li>
         </ol>
 
         <h2 className="pt-2 font-display text-xl font-bold text-ink">

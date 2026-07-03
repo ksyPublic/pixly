@@ -9,6 +9,7 @@ import {
   detectFormat,
 } from "@/lib/conversions";
 import { convertImage, formatBytes, outputFilename } from "@/lib/convert";
+import { useI18n } from "@/lib/i18n";
 
 interface Item {
   id: string;
@@ -28,6 +29,7 @@ export default function Converter({ from, to }: { from: Format; to: Format }) {
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const lossy = FORMATS[target].lossy;
+  const { t } = useI18n();
 
   // Revoke object URLs on unmount to avoid leaking blob memory.
   const itemsRef = useRef(items);
@@ -84,7 +86,7 @@ export default function Converter({ from, to }: { from: Format; to: Format }) {
           file,
           sourceFmt,
           status: sourceFmt ? "converting" : "error",
-          error: sourceFmt ? undefined : "Unsupported file type.",
+          error: sourceFmt ? undefined : t("conv.unsupported"),
         };
       });
       setItems((prev) => [...prev, ...newItems]);
@@ -92,7 +94,7 @@ export default function Converter({ from, to }: { from: Format; to: Format }) {
         (it) => it.sourceFmt && runConvert(it.id, it.file, target, quality),
       );
     },
-    [target, quality, runConvert],
+    [target, quality, runConvert, t],
   );
 
   // Re-encode everything when the target format or quality changes.
@@ -179,18 +181,16 @@ export default function Converter({ from, to }: { from: Format; to: Format }) {
           />
         </svg>
         <p className="text-base font-medium">
-          Drop {FORMATS[from].label} files here, or click to browse
+          {t("conv.dropOpen", { fmt: FORMATS[from].label })}
         </p>
-        <p className="mt-1 text-sm text-muted">
-          Converted instantly in your browser · never uploaded
-        </p>
+        <p className="mt-1 text-sm text-muted">{t("conv.dropSub")}</p>
       </div>
 
       {/* Controls: target format + quality */}
       <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-3">
         <div className="flex items-center gap-2">
           <label htmlFor="target" className="text-sm text-muted">
-            Convert to
+            {t("conv.to")}
           </label>
           <select
             id="target"
@@ -209,7 +209,7 @@ export default function Converter({ from, to }: { from: Format; to: Format }) {
         {lossy && (
           <div className="flex flex-1 items-center gap-3">
             <label htmlFor="quality" className="text-sm text-muted">
-              Quality
+              {t("conv.quality")}
             </label>
             <input
               id="quality"
@@ -235,13 +235,13 @@ export default function Converter({ from, to }: { from: Format; to: Format }) {
         <div className="mt-6">
           <div className="mb-3 flex items-center justify-between">
             <span className="text-sm text-muted">
-              {doneItems.length}/{items.length} converted
+              {t("conv.converted", { done: doneItems.length, total: items.length })}
             </span>
             <button
               onClick={clearAll}
               className="text-sm text-muted underline-offset-2 hover:underline"
             >
-              Clear all
+              {t("conv.clear")}
             </button>
           </div>
 
@@ -278,7 +278,7 @@ export default function Converter({ from, to }: { from: Format; to: Format }) {
 
                 {it.status === "converting" && (
                   <span className="text-xs text-muted">
-                    Converting…
+                    {t("conv.converting")}
                   </span>
                 )}
                 {it.status === "error" && (
@@ -292,7 +292,7 @@ export default function Converter({ from, to }: { from: Format; to: Format }) {
                     download={it.outName}
                     className="shrink-0 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white transition-opacity hover:opacity-90"
                   >
-                    Download
+                    {t("conv.download")}
                   </a>
                 )}
               </li>
