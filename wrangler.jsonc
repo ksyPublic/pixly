@@ -1,0 +1,12 @@
+{
+  // Static-assets-only Worker. No `main` = no server code, no OpenNext.
+  // `npx wrangler deploy` uploads the ./out folder (Next.js static export)
+  // as static assets and serves them directly.
+  "name": "pixly",
+  "compatibility_date": "2026-07-03",
+  "assets": {
+    "directory": "./out",
+    // Serve out/404.html for unknown paths (Next.js static export emits it).
+    "not_found_handling": "404-page"
+  }
+}
