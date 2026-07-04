@@ -67,13 +67,12 @@ function Chevron({ className }: { className?: string }) {
 }
 
 // Hero visual — a layered photo showcase (CapCut-style): two overlapping, tilted
-// image cards with rich gradient scenes standing in for real photos, the front
-// one wearing a tangerine crop frame, plus HEIC→JPG badges — the convert + crop
-// story at a glance. Photo CONTENT uses vivid fixed-colour gradients (photos
-// aren't theme-dependent); the card frames, crop UI and badges use tokens
-// (fill-surface / stroke-line / stroke-accent / fill-accent) so the chrome
-// adapts light↔dark. Soft drop shadows for depth; the crop handles breathe on
-// the shared reduced-motion-safe loop (.pixly-crop-live). Decorative → aria-hidden.
+// image cards with real photos (committed to public/, Unsplash-licensed), the
+// front one wearing a tangerine crop frame, plus HEIC→JPG badges — the convert +
+// crop story at a glance. The card frames, crop UI and badges use tokens
+// (fill-surface / stroke-line / stroke-accent / fill-accent) so the chrome adapts
+// light↔dark. Soft drop shadows for depth; the crop handles breathe on the shared
+// reduced-motion-safe loop (.pixly-crop-live). Decorative → aria-hidden.
 function HeroVisual({ className }: { className?: string }) {
   return (
     <svg
@@ -84,16 +83,6 @@ function HeroVisual({ className }: { className?: string }) {
       className={className}
     >
       <defs>
-        <linearGradient id="pixly-ph-cool" x1="0.1" y1="0" x2="0.9" y2="1">
-          <stop offset="0" stopColor="#8B7DF6" />
-          <stop offset="0.55" stopColor="#C06BC9" />
-          <stop offset="1" stopColor="#F6A98C" />
-        </linearGradient>
-        <linearGradient id="pixly-ph-warm" x1="0.1" y1="0" x2="0.9" y2="1">
-          <stop offset="0" stopColor="#FFDF9E" />
-          <stop offset="0.5" stopColor="#FF9F4A" />
-          <stop offset="1" stopColor="#FF5E3A" />
-        </linearGradient>
         <filter id="pixly-ph-shadow" x="-40%" y="-40%" width="180%" height="180%">
           <feDropShadow dx="0" dy="16" stdDeviation="20" floodColor="#141821" floodOpacity="0.22" />
         </filter>
@@ -106,16 +95,20 @@ function HeroVisual({ className }: { className?: string }) {
       </defs>
 
       {/* Soft ambient glow. */}
-      <ellipse cx="300" cy="240" rx="250" ry="190" opacity="0.7" className="fill-accent-soft" />
+      <ellipse cx="300" cy="240" rx="240" ry="180" opacity="0.45" className="fill-accent-soft" />
 
-      {/* Card A — back (cool dusk), tilted right. */}
+      {/* Card A — back (warm city photo), tilted right. */}
       <g transform="translate(288 30) rotate(7)" filter="url(#pixly-ph-shadow)">
         <rect x="-10" y="-10" width="248" height="188" rx="24" className="fill-surface" />
         <g clipPath="url(#pixly-clip-a)">
-          <rect width="228" height="168" fill="url(#pixly-ph-cool)" />
-          <circle cx="58" cy="56" r="26" fill="#ffffff" opacity="0.85" />
-          <path d="M0 168 L58 120 L108 150 L162 108 L228 154 L228 168 Z" fill="#3a2d6b" opacity="0.5" />
-          <path d="M0 168 L46 142 L120 168 Z" fill="#241a4d" opacity="0.5" />
+          <image
+            href="/hero-2.jpg"
+            x="0"
+            y="0"
+            width="228"
+            height="168"
+            preserveAspectRatio="xMidYMid slice"
+          />
         </g>
         <rect x="0" y="0" width="228" height="168" rx="18" strokeWidth="1.5" className="fill-none stroke-line" />
         <g transform="translate(12 12)">
@@ -124,14 +117,18 @@ function HeroVisual({ className }: { className?: string }) {
         </g>
       </g>
 
-      {/* Card B — front (warm golden), tilted left, wearing the crop frame. */}
+      {/* Card B — front (fjord photo), tilted left, wearing the crop frame. */}
       <g transform="translate(44 150) rotate(-5)" filter="url(#pixly-ph-shadow)">
         <rect x="-11" y="-11" width="274" height="210" rx="26" className="fill-surface" />
         <g clipPath="url(#pixly-clip-b)">
-          <rect width="252" height="188" fill="url(#pixly-ph-warm)" />
-          <circle cx="190" cy="58" r="30" fill="#ffffff" opacity="0.9" />
-          <path d="M0 188 L70 130 L120 162 L182 118 L252 166 L252 188 Z" fill="#b23a1e" opacity="0.5" />
-          <path d="M0 188 L58 158 L140 188 Z" fill="#8f2d16" opacity="0.5" />
+          <image
+            href="/hero-1.jpg"
+            x="0"
+            y="0"
+            width="252"
+            height="188"
+            preserveAspectRatio="xMidYMid slice"
+          />
         </g>
         {/* Crop overlay — rule of thirds + corner brackets + handles. */}
         <g strokeWidth="1" opacity="0.5" className="stroke-accent">
