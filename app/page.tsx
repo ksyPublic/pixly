@@ -66,84 +66,58 @@ function Chevron({ className }: { className?: string }) {
   );
 }
 
-// Hero brand artwork — an abstract "pixel dissolve". A bold tangerine disc
-// (Pixly = pixels/images) whose right edge disintegrates into a modular grid of
-// squares that shrink, fade and scatter into open space, ringed by two thin
-// concentric arcs. No literal UI — mood and brand only. Pure token-coloured
-// inline SVG (fill-accent / stroke-accent / stroke-line-strong / fill-line-strong)
-// so it flips cleanly light↔dark and scales to mobile via the viewBox. The
-// dissolving pixels breathe on a GPU-cheap, reduced-motion-safe opacity loop
-// (.pixly-pixel in app/globals.css). Decorative → aria-hidden.
-type HeroPixel = {
-  x: number;
-  y: number;
-  s: number;
-  o: number;
-  outline: boolean;
-  phase: number;
-  core: boolean;
-};
+// Hero brand artwork — an abstract tangerine "pixel mosaic". A grid of rounded
+// squares (Pixly = pixels) flowing from a solid tangerine cluster into softer
+// tints and open wireframe cells, over a soft accent glow. Bold and clearly
+// visible; token-coloured inline SVG (fill-accent / fill-accent-soft /
+// stroke-accent) so it flips light↔dark and scales via the viewBox. The lighter
+// cells breathe on a GPU-cheap, reduced-motion-safe loop (.pixly-pixel).
+// Decorative → aria-hidden.
+type CellKind = "solid" | "soft" | "line" | "";
 
-const HERO_CX = 150;
-const HERO_CY = 120;
-const HERO_R = 82;
+const HERO_CELL = 54;
+const HERO_GAP = 16;
+const HERO_PAD = 16;
 
-// Deterministic (no randomness) pixel field: the right half of the disc, solid
-// at the seam and dissolving radially outward into smaller, fainter, sparser
-// squares. Size + opacity taper with distance; the outer bands thin to a
-// checker, then a sparse trail.
-const HERO_PIXELS: HeroPixel[] = (() => {
-  const out: HeroPixel[] = [];
-  const pitch = 20;
-  for (let c = 0; c < 12; c++) {
-    for (let r = 0; r < 9; r++) {
-      const x = HERO_CX + c * pitch; // seam column at the centre, marching right
-      const y = 40 + r * pitch;
-      const dr = Math.hypot(x - HERO_CX, y - HERO_CY) / HERO_R; // 0 → 1 → beyond
-      let keep = false;
-      if (dr <= 1) keep = true; // the pixelated disc
-      else if (dr <= 1.2) keep = (c + r) % 2 === 0; // checkered fray
-      else if (dr <= 1.42) keep = (c + r) % 3 === 0; // sparse trailing
-      if (!keep) continue;
-      out.push({
-        x,
-        y,
-        s: Math.max(4, 20 - dr * 12),
-        o: Math.min(1, Math.max(0.16, 1.08 - dr * 0.72)),
-        outline: dr > 1.05 && c % 2 === 1,
-        phase: (c + r * 2) % 4,
-        core: dr <= 0.55,
-      });
-    }
-  }
-  return out;
-})();
-
-// A few detached pixels drifting into the right-hand negative space —
-// hand-placed for a deliberate, tapering trail (some solid, some wireframe).
-const HERO_DRIFT: HeroPixel[] = [
-  { x: 250, y: 96, s: 11, o: 0.5, outline: false, phase: 0, core: false },
-  { x: 276, y: 134, s: 9, o: 0.4, outline: true, phase: 1, core: false },
-  { x: 300, y: 108, s: 8, o: 0.32, outline: false, phase: 2, core: false },
-  { x: 302, y: 152, s: 6, o: 0.26, outline: false, phase: 3, core: false },
-  { x: 324, y: 126, s: 6, o: 0.22, outline: true, phase: 0, core: false },
-  { x: 344, y: 114, s: 5, o: 0.16, outline: false, phase: 2, core: false },
+// 3 rows × 5 cols. A solid tangerine cluster in the lower-left dissolves up and
+// to the right into soft tints, wireframe outlines, then open space.
+const HERO_MAP: CellKind[][] = [
+  ["soft", "line", "", "line", "soft"],
+  ["solid", "solid", "soft", "line", ""],
+  ["solid", "soft", "line", "", "line"],
 ];
 
-const HERO_FIELD = [...HERO_PIXELS, ...HERO_DRIFT];
+const HERO_COLS = HERO_MAP[0].length;
+const HERO_ROWS = HERO_MAP.length;
+const HERO_W = HERO_PAD * 2 + HERO_COLS * HERO_CELL + (HERO_COLS - 1) * HERO_GAP;
+const HERO_H = HERO_PAD * 2 + HERO_ROWS * HERO_CELL + (HERO_ROWS - 1) * HERO_GAP;
 
-function HeroPixelRect({ px }: { px: HeroPixel }) {
-  const half = px.s / 2;
+function HeroCell({ c, r, kind }: { c: number; r: number; kind: CellKind }) {
+  if (!kind) return null;
+  const x = HERO_PAD + c * (HERO_CELL + HERO_GAP);
+  const y = HERO_PAD + r * (HERO_CELL + HERO_GAP);
+  const cls =
+    kind === "solid"
+      ? "fill-accent"
+      : kind === "soft"
+        ? "fill-accent-soft"
+        : "fill-none stroke-accent";
+  // Group lighter cells onto the breathing loop; solids stay steady as anchors.
+  const phase = (c + r) % 3;
   return (
     <rect
-      x={px.x - half}
-      y={px.y - half}
-      width={px.s}
-      height={px.s}
-      rx={Math.min(1.6, px.s * 0.12)}
-      opacity={px.o}
-      strokeWidth={px.outline ? 1.4 : undefined}
-      className={px.outline ? "fill-none stroke-accent" : "fill-accent"}
+      x={x}
+      y={y}
+      width={HERO_CELL}
+      height={HERO_CELL}
+      rx={14}
+      strokeWidth={kind === "line" ? 3 : undefined}
+      className={kind === "solid" ? cls : `${cls} pixly-pixel`}
+      style={
+        kind === "solid"
+          ? undefined
+          : ({ "--px-delay": `${phase * 0.5}s`, "--px-dur": `${4 + phase * 0.6}s` } as CSSProperties)
+      }
     />
   );
 }
@@ -151,80 +125,22 @@ function HeroPixelRect({ px }: { px: HeroPixel }) {
 function HeroVisual({ className }: { className?: string }) {
   return (
     <svg
-      viewBox="0 0 380 240"
+      viewBox={`0 0 ${HERO_W} ${HERO_H}`}
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"
       className={className}
     >
-      <defs>
-        {/* Solid focal mass = the left half of the disc, extended just past the
-            centre so it backs the seam column and the dissolve reads cleanly. */}
-        <clipPath id="pixly-hero-solid">
-          <rect x="0" y="0" width="161" height="240" />
-        </clipPath>
-      </defs>
-
-      {/* Editorial texture — a small neutral pixel cluster balances the top-left. */}
-      <g className="fill-line-strong">
-        {[34, 47].flatMap((cx) =>
-          [44, 57, 70].map((cy) => (
-            <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={1.7} />
-          )),
-        )}
-      </g>
-
-      {/* Concentric arcs hugging the dissolving side (echo + depth). */}
-      <path
-        d="M263.4 24.9 A148 148 0 0 1 263.4 215.1"
-        strokeWidth="2"
-        strokeLinecap="round"
-        className="stroke-line-strong"
-      />
-      <path
-        d="M226.3 22.3 A124 124 0 0 1 226.3 217.7"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        opacity="0.55"
-        className="stroke-accent"
-      />
-
-      {/* Solid disc — left half. */}
+      {/* Soft glow behind the mosaic for warmth + depth. */}
       <circle
-        cx={HERO_CX}
-        cy={HERO_CY}
-        r={HERO_R}
-        clipPath="url(#pixly-hero-solid)"
-        className="fill-accent"
+        cx={HERO_W * 0.36}
+        cy={HERO_H * 0.62}
+        r={HERO_H * 0.62}
+        className="fill-accent-soft"
       />
-
-      {/* Solid core of the pixelated right half (steady, no breathing). */}
-      <g>
-        {HERO_FIELD.filter((p) => p.core).map((px) => (
-          <HeroPixelRect key={`c-${px.x}-${px.y}`} px={px} />
-        ))}
-      </g>
-
-      {/* Dissolving pixels — grouped by phase; each group breathes on a slightly
-          different, offset loop so the edge shimmers rather than pulsing in
-          sync. Group opacity multiplies with each pixel's own taper, so the
-          static (reduced-motion) state keeps the intended fade. */}
-      {[0, 1, 2, 3].map((phase) => (
-        <g
-          key={phase}
-          className="pixly-pixel"
-          style={
-            {
-              "--px-delay": `${phase * 0.6}s`,
-              "--px-dur": `${4.2 + phase * 0.5}s`,
-            } as CSSProperties
-          }
-        >
-          {HERO_FIELD.filter((p) => !p.core && p.phase === phase).map((px) => (
-            <HeroPixelRect key={`p-${px.x}-${px.y}`} px={px} />
-          ))}
-        </g>
-      ))}
+      {HERO_MAP.flatMap((row, r) =>
+        row.map((kind, c) => <HeroCell key={`${r}-${c}`} c={c} r={r} kind={kind} />),
+      )}
     </svg>
   );
 }
