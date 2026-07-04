@@ -66,81 +66,98 @@ function Chevron({ className }: { className?: string }) {
   );
 }
 
-// Hero brand artwork — an abstract tangerine "pixel mosaic". A grid of rounded
-// squares (Pixly = pixels) flowing from a solid tangerine cluster into softer
-// tints and open wireframe cells, over a soft accent glow. Bold and clearly
-// visible; token-coloured inline SVG (fill-accent / fill-accent-soft /
-// stroke-accent) so it flips light↔dark and scales via the viewBox. The lighter
-// cells breathe on a GPU-cheap, reduced-motion-safe loop (.pixly-pixel).
-// Decorative → aria-hidden.
-type CellKind = "solid" | "soft" | "line" | "";
-
-const HERO_CELL = 54;
-const HERO_GAP = 16;
-const HERO_PAD = 16;
-
-// 3 rows × 5 cols. A solid tangerine cluster in the lower-left dissolves up and
-// to the right into soft tints, wireframe outlines, then open space.
-const HERO_MAP: CellKind[][] = [
-  ["soft", "line", "", "line", "soft"],
-  ["solid", "solid", "soft", "line", ""],
-  ["solid", "soft", "line", "", "line"],
-];
-
-const HERO_COLS = HERO_MAP[0].length;
-const HERO_ROWS = HERO_MAP.length;
-const HERO_W = HERO_PAD * 2 + HERO_COLS * HERO_CELL + (HERO_COLS - 1) * HERO_GAP;
-const HERO_H = HERO_PAD * 2 + HERO_ROWS * HERO_CELL + (HERO_ROWS - 1) * HERO_GAP;
-
-function HeroCell({ c, r, kind }: { c: number; r: number; kind: CellKind }) {
-  if (!kind) return null;
-  const x = HERO_PAD + c * (HERO_CELL + HERO_GAP);
-  const y = HERO_PAD + r * (HERO_CELL + HERO_GAP);
-  const cls =
-    kind === "solid"
-      ? "fill-accent"
-      : kind === "soft"
-        ? "fill-accent-soft"
-        : "fill-none stroke-accent";
-  // Group lighter cells onto the breathing loop; solids stay steady as anchors.
-  const phase = (c + r) % 3;
-  return (
-    <rect
-      x={x}
-      y={y}
-      width={HERO_CELL}
-      height={HERO_CELL}
-      rx={14}
-      strokeWidth={kind === "line" ? 3 : undefined}
-      className={kind === "solid" ? cls : `${cls} pixly-pixel`}
-      style={
-        kind === "solid"
-          ? undefined
-          : ({ "--px-delay": `${phase * 0.5}s`, "--px-dur": `${4 + phase * 0.6}s` } as CSSProperties)
-      }
-    />
-  );
-}
-
+// Hero visual — a layered photo showcase (CapCut-style): two overlapping, tilted
+// image cards with rich gradient scenes standing in for real photos, the front
+// one wearing a tangerine crop frame, plus HEIC→JPG badges — the convert + crop
+// story at a glance. Photo CONTENT uses vivid fixed-colour gradients (photos
+// aren't theme-dependent); the card frames, crop UI and badges use tokens
+// (fill-surface / stroke-line / stroke-accent / fill-accent) so the chrome
+// adapts light↔dark. Soft drop shadows for depth; the crop handles breathe on
+// the shared reduced-motion-safe loop (.pixly-crop-live). Decorative → aria-hidden.
 function HeroVisual({ className }: { className?: string }) {
   return (
     <svg
-      viewBox={`0 0 ${HERO_W} ${HERO_H}`}
+      viewBox="0 0 560 420"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"
       className={className}
     >
-      {/* Soft glow behind the mosaic for warmth + depth. */}
-      <circle
-        cx={HERO_W * 0.36}
-        cy={HERO_H * 0.62}
-        r={HERO_H * 0.62}
-        className="fill-accent-soft"
-      />
-      {HERO_MAP.flatMap((row, r) =>
-        row.map((kind, c) => <HeroCell key={`${r}-${c}`} c={c} r={r} kind={kind} />),
-      )}
+      <defs>
+        <linearGradient id="pixly-ph-cool" x1="0.1" y1="0" x2="0.9" y2="1">
+          <stop offset="0" stopColor="#8B7DF6" />
+          <stop offset="0.55" stopColor="#C06BC9" />
+          <stop offset="1" stopColor="#F6A98C" />
+        </linearGradient>
+        <linearGradient id="pixly-ph-warm" x1="0.1" y1="0" x2="0.9" y2="1">
+          <stop offset="0" stopColor="#FFDF9E" />
+          <stop offset="0.5" stopColor="#FF9F4A" />
+          <stop offset="1" stopColor="#FF5E3A" />
+        </linearGradient>
+        <filter id="pixly-ph-shadow" x="-40%" y="-40%" width="180%" height="180%">
+          <feDropShadow dx="0" dy="16" stdDeviation="20" floodColor="#141821" floodOpacity="0.22" />
+        </filter>
+        <clipPath id="pixly-clip-a">
+          <rect x="0" y="0" width="228" height="168" rx="18" />
+        </clipPath>
+        <clipPath id="pixly-clip-b">
+          <rect x="0" y="0" width="252" height="188" rx="18" />
+        </clipPath>
+      </defs>
+
+      {/* Soft ambient glow. */}
+      <ellipse cx="300" cy="240" rx="250" ry="190" opacity="0.7" className="fill-accent-soft" />
+
+      {/* Card A — back (cool dusk), tilted right. */}
+      <g transform="translate(288 30) rotate(7)" filter="url(#pixly-ph-shadow)">
+        <rect x="-10" y="-10" width="248" height="188" rx="24" className="fill-surface" />
+        <g clipPath="url(#pixly-clip-a)">
+          <rect width="228" height="168" fill="url(#pixly-ph-cool)" />
+          <circle cx="58" cy="56" r="26" fill="#ffffff" opacity="0.85" />
+          <path d="M0 168 L58 120 L108 150 L162 108 L228 154 L228 168 Z" fill="#3a2d6b" opacity="0.5" />
+          <path d="M0 168 L46 142 L120 168 Z" fill="#241a4d" opacity="0.5" />
+        </g>
+        <rect x="0" y="0" width="228" height="168" rx="18" strokeWidth="1.5" className="fill-none stroke-line" />
+        <g transform="translate(12 12)">
+          <rect width="58" height="26" rx="8" className="fill-surface" />
+          <text x="29" y="18" textAnchor="middle" fontSize="13" fontWeight="700" className="fill-muted font-mono">HEIC</text>
+        </g>
+      </g>
+
+      {/* Card B — front (warm golden), tilted left, wearing the crop frame. */}
+      <g transform="translate(44 150) rotate(-5)" filter="url(#pixly-ph-shadow)">
+        <rect x="-11" y="-11" width="274" height="210" rx="26" className="fill-surface" />
+        <g clipPath="url(#pixly-clip-b)">
+          <rect width="252" height="188" fill="url(#pixly-ph-warm)" />
+          <circle cx="190" cy="58" r="30" fill="#ffffff" opacity="0.9" />
+          <path d="M0 188 L70 130 L120 162 L182 118 L252 166 L252 188 Z" fill="#b23a1e" opacity="0.5" />
+          <path d="M0 188 L58 158 L140 188 Z" fill="#8f2d16" opacity="0.5" />
+        </g>
+        {/* Crop overlay — rule of thirds + corner brackets + handles. */}
+        <g strokeWidth="1" opacity="0.5" className="stroke-accent">
+          <path d="M84 8 V180" />
+          <path d="M168 8 V180" />
+          <path d="M8 63 H244" />
+          <path d="M8 125 H244" />
+        </g>
+        <g strokeWidth="4" strokeLinecap="round" className="stroke-accent pixly-crop-live">
+          <path d="M8 24 V8 H24" />
+          <path d="M228 8 H244 V24" />
+          <path d="M8 164 V180 H24" />
+          <path d="M244 164 V180 H228" />
+        </g>
+        <g className="fill-accent pixly-crop-live">
+          <rect x="4" y="4" width="8" height="8" rx="2" />
+          <rect x="240" y="4" width="8" height="8" rx="2" />
+          <rect x="4" y="176" width="8" height="8" rx="2" />
+          <rect x="240" y="176" width="8" height="8" rx="2" />
+        </g>
+        <rect x="0" y="0" width="252" height="188" rx="18" strokeWidth="1.5" className="fill-none stroke-line" />
+        <g transform="translate(182 152)">
+          <rect width="54" height="26" rx="8" className="fill-accent" />
+          <text x="27" y="18" textAnchor="middle" fontSize="13" fontWeight="700" fill="#ffffff" className="font-mono">JPG</text>
+        </g>
+      </g>
     </svg>
   );
 }
@@ -271,75 +288,76 @@ export default function Home() {
       <section className="relative overflow-hidden">
         <HeroMotion />
         <div className="dotgrid pointer-events-none absolute inset-0 -z-10 opacity-40" />
-        <div className="mx-auto max-w-3xl px-5 pb-16 pt-20 text-center sm:pt-28">
-          <span className="rise inline-flex items-center gap-2 rounded-full border border-line bg-surface/80 px-3.5 py-1.5 text-[13px] font-medium text-muted backdrop-blur">
-            <span className="h-1.5 w-1.5 rounded-full bg-good" />
-            {t("home.eyebrow")}
-          </span>
-          <h1
-            className="rise mt-6 break-keep font-display text-[2.7rem] font-extrabold leading-[1.05] tracking-tight sm:text-6xl"
-            style={{ animationDelay: "60ms" }}
-          >
-            {t("home.h1a")}
-            <br />
-            <span className="text-accent">{t("home.h1b")}</span>
-          </h1>
-          <p
-            className="rise mx-auto mt-5 max-w-xl text-lg leading-relaxed text-muted"
-            style={{ animationDelay: "120ms" }}
-          >
-            {t("home.sub")}
-          </p>
-          <div
-            className="rise mt-8 flex flex-wrap items-center justify-center gap-3"
-            style={{ animationDelay: "180ms" }}
-          >
-            <a
-              href="#tools"
-              className="rounded-xl bg-accent px-6 py-3 font-semibold text-white shadow-[0_8px_20px_-8px_var(--accent)] transition-transform hover:-translate-y-0.5"
-            >
-              {t("home.ctaBrowse")}
-            </a>
-            <Link
-              href="/crop/"
-              className="rounded-xl border border-line-strong bg-surface px-6 py-3 font-semibold transition-colors hover:border-accent hover:text-accent"
-            >
-              {t("home.ctaCrop")}
-            </Link>
-          </div>
-          <p
-            className="rise mt-5 text-[13px] text-muted"
-            style={{ animationDelay: "220ms" }}
-          >
-            {t("home.heroReassure")}
-          </p>
-          <div
-            className="rise mt-10 flex flex-col items-center gap-3"
-            style={{ animationDelay: "280ms" }}
-          >
-            <span className="font-mono text-[11px] uppercase tracking-wider text-muted">
-              {t("home.formatsLabel")}
+        <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-10 px-5 pb-14 pt-14 sm:pt-16 lg:grid-cols-[1.02fr_1fr] lg:gap-6 lg:pb-24 lg:pt-24">
+          {/* Left — copy */}
+          <div className="text-center lg:text-left">
+            <span className="rise inline-flex items-center gap-2 rounded-full border border-line bg-surface/80 px-3.5 py-1.5 text-[13px] font-medium text-muted backdrop-blur">
+              <span className="h-1.5 w-1.5 rounded-full bg-good" />
+              {t("home.eyebrow")}
             </span>
-            <ul className="flex flex-wrap items-center justify-center gap-2">
-              {FORMAT_CHIPS.map((f) => (
-                <li
-                  key={f}
-                  className="rounded-lg border border-line bg-surface px-2.5 py-1 font-mono text-xs font-medium text-muted"
-                >
-                  {f}
-                </li>
-              ))}
-            </ul>
+            <h1
+              className="rise mt-6 break-keep font-display text-[2.7rem] font-extrabold leading-[1.05] tracking-tight sm:text-6xl"
+              style={{ animationDelay: "60ms" }}
+            >
+              {t("home.h1a")}
+              <br />
+              <span className="text-accent">{t("home.h1b")}</span>
+            </h1>
+            <p
+              className="rise mx-auto mt-5 max-w-xl text-lg leading-relaxed text-muted lg:mx-0"
+              style={{ animationDelay: "120ms" }}
+            >
+              {t("home.sub")}
+            </p>
+            <div
+              className="rise mt-8 flex flex-wrap items-center justify-center gap-3 lg:justify-start"
+              style={{ animationDelay: "180ms" }}
+            >
+              <a
+                href="#tools"
+                className="rounded-xl bg-accent px-6 py-3 font-semibold text-white shadow-[0_8px_20px_-8px_var(--accent)] transition-transform hover:-translate-y-0.5"
+              >
+                {t("home.ctaBrowse")}
+              </a>
+              <Link
+                href="/crop/"
+                className="rounded-xl border border-line-strong bg-surface px-6 py-3 font-semibold transition-colors hover:border-accent hover:text-accent"
+              >
+                {t("home.ctaCrop")}
+              </Link>
+            </div>
+            <p
+              className="rise mt-5 text-[13px] text-muted"
+              style={{ animationDelay: "220ms" }}
+            >
+              {t("home.heroReassure")}
+            </p>
+            <div
+              className="rise mt-8 flex flex-col items-center gap-3 lg:items-start"
+              style={{ animationDelay: "280ms" }}
+            >
+              <span className="font-mono text-[11px] uppercase tracking-wider text-muted">
+                {t("home.formatsLabel")}
+              </span>
+              <ul className="flex flex-wrap items-center justify-center gap-2 lg:justify-start">
+                {FORMAT_CHIPS.map((f) => (
+                  <li
+                    key={f}
+                    className="rounded-lg border border-line bg-surface px-2.5 py-1 font-mono text-xs font-medium text-muted"
+                  >
+                    {f}
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
-          {/* Product visual — the finale of the hero sequence: it rises in
-              just after the format chips (280ms → 340ms), then settles into a
-              quiet ambient loop (crop handles breathe, arrow drifts to the
-              result) defined on its SVG groups. */}
+
+          {/* Right — layered photo showcase; bleeds toward the edge on desktop. */}
           <div
-            className="rise mx-auto mt-12 w-full max-w-lg sm:mt-14"
-            style={{ animationDelay: "340ms" }}
+            className="rise relative mt-2 lg:-mr-6 lg:mt-0 xl:-mr-16"
+            style={{ animationDelay: "200ms" }}
           >
-            <HeroVisual className="h-auto w-full" />
+            <HeroVisual className="mx-auto h-auto w-full max-w-xl lg:max-w-none" />
           </div>
         </div>
       </section>
