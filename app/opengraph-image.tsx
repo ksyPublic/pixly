@@ -45,7 +45,7 @@ const wordmarkSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="2 2 61 34"
 
 // The pictorial mark (sun + mountains) that also lives in the favicon / app
 // tile — here in tangerine, sitting inside the crop frame on the right.
-const glyphSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none"><circle cx="11" cy="11" r="3.2" fill="${ACCENT}"/><path d="M4.5 25.5 L12.6 15 L17 20.6 L20.6 16.4 L28 25.5 Z" fill="${ACCENT}"/></svg>`;
+const glyphSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 0 32 32" fill="none"><g stroke="${ACCENT}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6 V26"/><path d="M6 6 C14.5 6 18.5 8 18.5 11 C18.5 14 14.5 15.8 6 15.8"/></g></svg>`;
 
 // L-shaped crop-handle bracket for the right-hand frame motif.
 function CropCorner({

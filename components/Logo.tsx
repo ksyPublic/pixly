@@ -1,16 +1,49 @@
-// Pixly logo — a wordmark-only brand.
+// Pixly logo — an icon mark + wordmark lockup (like CapCut's [mark][CapCut]).
 //
-// No app-tile icon: the mark IS the word. "Pixly" is drawn as confident,
-// humanist geometric lettering — the caps/x-height are kept comfortably short
-// relative to the glyph widths so the word reads balanced, not condensed or
-// stretched. Letters use currentColor so the wordmark flips cleanly between
-// light and dark themes; the dot of the "i" is the one brand accent — a solid
-// "pixel" (fill-accent), the seed of the whole identity.
-//
-// Metrics (user units): cap-top y6, baseline y26 (cap height 20), x-height
-// top y12 (x-height 14 ≈ 0.7 cap), descender y33. Glyph widths ~9–13 give a
-// ~1.4:1 height:width feel. The viewBox is trimmed to the ink so there is no
-// dead vertical space.
+// The mark is a tangerine gradient tile carrying a white "P" drawn in the exact
+// same humanist geometric style as the wordmark's "P", so the icon and the word
+// read as one identity. The same tile is used for the browser-tab favicon and
+// the app icon, so header, tab and home-screen all match. The wordmark "Pixly"
+// is currentColor so it flips cleanly light↔dark; the dot of the "i" is the one
+// brand accent — a solid tangerine "pixel".
+
+function Mark({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 40 40"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+      className={className}
+    >
+      <defs>
+        <linearGradient
+          id="pixly-logo-g"
+          x1="4"
+          y1="2"
+          x2="36"
+          y2="38"
+          gradientUnits="userSpaceOnUse"
+        >
+          <stop stopColor="#FF7A45" />
+          <stop offset="1" stopColor="#E8431A" />
+        </linearGradient>
+      </defs>
+      <rect width="40" height="40" rx="11" fill="url(#pixly-logo-g)" />
+      <g
+        transform="translate(8.6 4.3) scale(0.95)"
+        stroke="#fff"
+        strokeWidth="5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      >
+        <path d="M6 6 V26" />
+        <path d="M6 6 C14.5 6 18.5 8 18.5 11 C18.5 14 14.5 15.8 6 15.8" />
+      </g>
+    </svg>
+  );
+}
 
 function Wordmark({ className }: { className?: string }) {
   return (
@@ -49,8 +82,9 @@ function Wordmark({ className }: { className?: string }) {
 
 export default function Logo({ className }: { className?: string }) {
   return (
-    <span className={`inline-flex items-center text-ink ${className ?? ""}`}>
-      <Wordmark className="h-[1.7rem] w-auto" />
+    <span className={`inline-flex items-center gap-2 text-ink ${className ?? ""}`}>
+      <Mark className="h-[1.5rem] w-auto shrink-0" />
+      <Wordmark className="h-[1.5rem] w-auto" />
     </span>
   );
 }
