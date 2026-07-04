@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Third-party build artifacts served verbatim (e.g. the pinned pdf.js
+    // worker copied into public/ — see scripts/copy-pdf-worker.mjs).
+    "public/**",
   ]),
 ]);
 

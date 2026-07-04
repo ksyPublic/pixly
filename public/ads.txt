@@ -1,0 +1,13 @@
+# Pixly ads.txt
+#
+# AdSense is NOT configured yet (lib/site.ts ADSENSE_CLIENT is empty), so this
+# file intentionally authorizes no sellers. An ads.txt with no active records is
+# valid and, unlike a wrong publisher ID, will not cause Google to flag an
+# "unauthorized seller" mismatch before the site is approved.
+#
+# AFTER AdSense approves the site:
+#   1. Replace pub-XXXXXXXXXXXXXXXX below with your real AdSense publisher ID
+#      (the digits from "ca-pub-…" — keep the "pub-" prefix, drop the "ca-").
+#   2. Remove the leading "# " to uncomment the record.
+#
+# google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0

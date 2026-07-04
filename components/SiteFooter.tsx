@@ -13,7 +13,22 @@ export default function SiteFooter() {
           <Logo className="[&_svg]:h-[1.15rem]" />
           <span>{t("footer.tagline")}</span>
         </div>
-        <nav className="flex items-center gap-5">
+        <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
+          <Link href="/compress/" className="transition-colors hover:text-ink">
+            {t("footer.compress")}
+          </Link>
+          <Link href="/jpg-to-pdf/" className="transition-colors hover:text-ink">
+            JPG→PDF
+          </Link>
+          <Link href="/png-to-pdf/" className="transition-colors hover:text-ink">
+            PNG→PDF
+          </Link>
+          <Link href="/pdf-to-jpg/" className="transition-colors hover:text-ink">
+            PDF→JPG
+          </Link>
+          <Link href="/pdf-to-png/" className="transition-colors hover:text-ink">
+            PDF→PNG
+          </Link>
           <Link href="/about/" className="transition-colors hover:text-ink">
             {t("footer.about")}
           </Link>

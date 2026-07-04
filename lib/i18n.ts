@@ -16,8 +16,14 @@ export type Locale = "ko" | "en";
 const DICT = {
   ko: {
     "nav.convert": "변환",
+    "nav.compress": "압축",
     "nav.crop": "자르기",
     "nav.about": "소개",
+    "nav.pdf": "PDF 도구",
+    "nav.tools": "도구",
+    "nav.info": "정보",
+    "nav.menu": "메뉴 열기",
+    "nav.close": "메뉴 닫기",
 
     "home.eyebrow": "업로드 없이 · 내 기기 안에서 안전하게",
     "home.h1a": "사진 변환도 자르기도,",
@@ -82,6 +88,88 @@ const DICT = {
     "conv.zipping": "압축하는 중…",
     "conv.unsupported": "지원하지 않는 파일 형식입니다.",
 
+    // Detail-page chrome shared by converter / compress / PDF landings.
+    "badge.privateT": "100% 비공개",
+    "badge.privateD": "파일이 기기 안에 머물러요",
+    "badge.nosignupT": "가입 불필요",
+    "badge.nosignupD": "계정도 이메일도 필요 없어요",
+    "badge.unlimitedT": "제한 없음",
+    "badge.unlimitedD": "개수·용량 제한이 없어요",
+    "detail.safeHeading": "안전한가요?",
+    "detail.relatedTools": "관련 도구",
+
+    // Converter detail pages ({from}/{to} = FORMATS labels).
+    "conv.h1": "{from} → {to} 변환기",
+    "conv.intro":
+      "{from} 파일을 {to} 형식으로 무료로 변환하세요. 모든 과정이 브라우저 안에서 처리되고, 이미지는 서버에 올라가지 않아요.",
+    "conv.whyHeading": "{from} → {to} 변환, 왜 필요할까요?",
+    "conv.safeBody":
+      "네. 대부분의 온라인 변환기와 달리 Pixly는 파일을 업로드하지 않아요. 모든 처리가 브라우저에 내장된 이미지 엔진으로 기기 안에서 이뤄지기 때문에 사진이 서버에 닿을 일이 없어요. 덕분에 빠르고, 페이지를 한 번 열어두면 인터넷이 끊겨도 동작해요.",
+    "conv.relatedConverters": "관련 변환기",
+
+    // Compress landing.
+    "compress.h1": "온라인 이미지 압축",
+    "compress.intro":
+      "브라우저 안에서 처리되는 무료 이미지 압축이에요. JPG, PNG, HEIC, WebP 사진을 원하는 목표 용량에 딱 맞게 줄여보세요. 파일은 서버에 올라가지 않아요.",
+    "compress.whyHeading": "이미지를 왜 압축하나요?",
+
+    "compress.dropOpen": "이미지를 놓거나 클릭해서 선택",
+    "compress.dropSub": "브라우저에서 바로 용량을 줄여요 · 업로드 없음",
+    "compress.format": "출력 형식",
+    "compress.working": "압축하는 중…",
+    "compress.compressed": "{done}/{total} 압축됨",
+    "compress.overTarget": "목표 용량보다 큼 (최소 품질)",
+
+    "pdf.tools": "PDF 도구",
+    "pdf.homeTitle": "PDF 도구",
+    "pdf.homeSub":
+      "이미지를 하나의 PDF로 묶거나, PDF를 이미지로 되돌려요 — 모두 브라우저 안에서 처리돼요.",
+    "pdf.cardJpgToPdf": "JPG 사진을 하나의 PDF로 합치기",
+    "pdf.cardPngToPdf": "PNG 이미지를 하나의 PDF로 합치기",
+    "pdf.cardPdfToJpg": "PDF의 각 페이지를 JPG로 저장",
+    "pdf.cardPdfToPng": "PDF의 각 페이지를 PNG로 저장",
+
+    "pdf.dropImages": "{fmt} 이미지를 놓거나 클릭해서 선택",
+    "pdf.dropImagesSub": "브라우저에서 하나의 PDF로 합쳐요 · 업로드 없음",
+    "pdf.dropPdf": "PDF를 놓거나 클릭해서 선택",
+    "pdf.dropPdfSub": "브라우저에서 이미지로 변환해요 · 업로드 없음",
+
+    "pdf.pageSize": "페이지 크기",
+    "pdf.sizeFit": "이미지에 맞춤",
+    "pdf.sizeA4": "A4",
+    "pdf.sizeLetter": "레터",
+    "pdf.orientation": "방향",
+    "pdf.orientAuto": "자동",
+    "pdf.portrait": "세로",
+    "pdf.landscape": "가로",
+    "pdf.margin": "여백",
+    "pdf.marginNone": "없음",
+    "pdf.marginSmall": "좁게",
+    "pdf.marginLarge": "넓게",
+
+    "pdf.resolution": "해상도",
+    "pdf.resStandard": "표준",
+    "pdf.resHigh": "고화질",
+    "pdf.resMax": "최대",
+
+    "pdf.makePdf": "PDF 만들기",
+    "pdf.making": "PDF 만드는 중…",
+    "pdf.downloadPdf": "PDF 다운로드",
+    "pdf.imageCount": "이미지 {n}개",
+    "pdf.reorderHint": "PDF를 만들기 전에 화살표로 순서를 바꿀 수 있어요.",
+    "pdf.moveUp": "위로 이동",
+    "pdf.moveDown": "아래로 이동",
+    "pdf.remove": "제거",
+
+    "pdf.rendering": "변환하는 중…",
+    "pdf.readingPdf": "PDF 읽는 중…",
+    "pdf.renderedPages": "{done}/{total}쪽",
+    "pdf.page": "{n}쪽",
+    "pdf.errRender":
+      "이 PDF를 읽지 못했어요. 손상되었거나 비밀번호가 걸려 있을 수 있어요.",
+    "pdf.errBuild": "PDF를 만들지 못했어요. 파일을 확인한 뒤 다시 시도해 주세요.",
+
+    "footer.compress": "용량 줄이기",
     "footer.tagline": "© 2026 Pixly · 브라우저 안에서 안전하게 쓰는 이미지 도구.",
     "footer.about": "소개",
     "footer.privacy": "개인정보",
@@ -166,11 +254,28 @@ const DICT = {
       "질문, 버그 제보, 또는 Pixly가 지원했으면 하는 형식이 있으신가요? 언제든 알려주세요.",
     "contact.emailLabel": "이메일:",
     "contact.reply": "보통 며칠 안에 답장드립니다.",
+
+    // FAQ page chrome. The Q&A itself lives in app/faq/faqData.ts (one source
+    // shared by the visible page and the FAQPage JSON-LD).
+    "faq.h1": "자주 묻는 질문",
+    "faq.intro":
+      "Pixly를 쓰면서 가장 많이 궁금해하시는 점을 모았어요. 짧게 답하자면 — 파일은 서버에 올라가지 않고, 모든 기능은 무료이며, 회원가입도 필요 없어요.",
+    "faq.relatedLabel": "관련 도구",
+    "faq.stillTitle": "찾는 답이 없나요?",
+    "faq.stillA": "궁금한 점이 더 있다면 언제든 ",
+    "faq.stillLink": "문의 페이지",
+    "faq.stillB": "로 물어봐 주세요.",
   },
   en: {
     "nav.convert": "Convert",
+    "nav.compress": "Compress",
     "nav.crop": "Crop",
     "nav.about": "About",
+    "nav.pdf": "PDF tools",
+    "nav.tools": "Tools",
+    "nav.info": "Info",
+    "nav.menu": "Open menu",
+    "nav.close": "Close menu",
 
     "home.eyebrow": "No uploads · safe on your own device",
     "home.h1a": "Convert and crop images,",
@@ -235,6 +340,88 @@ const DICT = {
     "conv.zipping": "Zipping…",
     "conv.unsupported": "Unsupported file type.",
 
+    // Detail-page chrome shared by converter / compress / PDF landings.
+    "badge.privateT": "100% private",
+    "badge.privateD": "Files stay on your device",
+    "badge.nosignupT": "No sign-up",
+    "badge.nosignupD": "No account, no email",
+    "badge.unlimitedT": "Unlimited",
+    "badge.unlimitedD": "No file-count or size caps",
+    "detail.safeHeading": "Is it safe?",
+    "detail.relatedTools": "Related tools",
+
+    // Converter detail pages ({from}/{to} = FORMATS labels).
+    "conv.h1": "{from} to {to} Converter",
+    "conv.intro":
+      "Free {from} → {to} conversion that runs entirely in your browser. Your images are never uploaded to a server.",
+    "conv.whyHeading": "Why convert {from} to {to}?",
+    "conv.safeBody":
+      "Yes. Unlike most online converters, Pixly never uploads your files. All processing happens locally using your browser's built-in image engine, so your photos never touch a server — which also makes it fast and works offline once loaded.",
+    "conv.relatedConverters": "Related converters",
+
+    // Compress landing.
+    "compress.h1": "Compress Images Online",
+    "compress.intro":
+      "Free image compression that runs entirely in your browser. Shrink JPG, PNG, HEIC or WebP photos to an exact target size — your files are never uploaded to a server.",
+    "compress.whyHeading": "Why compress images?",
+
+    "compress.dropOpen": "Drop images here, or click to browse",
+    "compress.dropSub": "Shrink files right in your browser · never uploaded",
+    "compress.format": "Output format",
+    "compress.working": "Compressing…",
+    "compress.compressed": "{done}/{total} compressed",
+    "compress.overTarget": "Over target (lowest quality)",
+
+    "pdf.tools": "PDF tools",
+    "pdf.homeTitle": "PDF tools",
+    "pdf.homeSub":
+      "Combine images into a single PDF, or turn a PDF back into images — all in your browser.",
+    "pdf.cardJpgToPdf": "Combine JPG photos into one PDF",
+    "pdf.cardPngToPdf": "Combine PNG images into one PDF",
+    "pdf.cardPdfToJpg": "Save each PDF page as a JPG",
+    "pdf.cardPdfToPng": "Save each PDF page as a PNG",
+
+    "pdf.dropImages": "Drop {fmt} images here, or click to browse",
+    "pdf.dropImagesSub": "Combined into one PDF in your browser · never uploaded",
+    "pdf.dropPdf": "Drop a PDF here, or click to browse",
+    "pdf.dropPdfSub": "Rendered to images in your browser · never uploaded",
+
+    "pdf.pageSize": "Page size",
+    "pdf.sizeFit": "Fit to image",
+    "pdf.sizeA4": "A4",
+    "pdf.sizeLetter": "Letter",
+    "pdf.orientation": "Orientation",
+    "pdf.orientAuto": "Auto",
+    "pdf.portrait": "Portrait",
+    "pdf.landscape": "Landscape",
+    "pdf.margin": "Margin",
+    "pdf.marginNone": "None",
+    "pdf.marginSmall": "Small",
+    "pdf.marginLarge": "Large",
+
+    "pdf.resolution": "Resolution",
+    "pdf.resStandard": "Standard",
+    "pdf.resHigh": "High",
+    "pdf.resMax": "Max",
+
+    "pdf.makePdf": "Create PDF",
+    "pdf.making": "Creating PDF…",
+    "pdf.downloadPdf": "Download PDF",
+    "pdf.imageCount": "{n} images",
+    "pdf.reorderHint": "Reorder pages with the arrows before creating your PDF.",
+    "pdf.moveUp": "Move up",
+    "pdf.moveDown": "Move down",
+    "pdf.remove": "Remove",
+
+    "pdf.rendering": "Rendering…",
+    "pdf.readingPdf": "Reading PDF…",
+    "pdf.renderedPages": "{done}/{total} pages",
+    "pdf.page": "Page {n}",
+    "pdf.errRender":
+      "Couldn't read this PDF. It may be corrupted or password-protected.",
+    "pdf.errBuild": "Couldn't create the PDF. Check your files and try again.",
+
+    "footer.compress": "Compress",
     "footer.tagline": "© 2026 Pixly · Private, in-browser image tools.",
     "footer.about": "About",
     "footer.privacy": "Privacy",
@@ -319,6 +506,17 @@ const DICT = {
       "Have a question, a bug report, or a format you'd like Pixly to support? We'd love to hear from you.",
     "contact.emailLabel": "Email:",
     "contact.reply": "We usually reply within a couple of days.",
+
+    // FAQ page chrome. The Q&A itself lives in app/faq/faqData.ts (one source
+    // shared by the visible page and the FAQPage JSON-LD).
+    "faq.h1": "Frequently Asked Questions",
+    "faq.intro":
+      "The questions people ask us most, answered in full. The short version: your files are never uploaded, every tool is free, and there's no sign-up.",
+    "faq.relatedLabel": "Related tools",
+    "faq.stillTitle": "Didn't find your answer?",
+    "faq.stillA": "Still have a question? Reach us anytime on the ",
+    "faq.stillLink": "contact page",
+    "faq.stillB": ".",
   },
 } as const;
 

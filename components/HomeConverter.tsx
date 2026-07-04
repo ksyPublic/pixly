@@ -31,7 +31,7 @@ export default function HomeConverter({ className }: { className?: string }) {
       </div>
 
       <div className="rounded-2xl border border-line bg-surface p-4 shadow-[var(--shadow)] sm:p-6">
-        <Converter from="heic" to="jpg" />
+        <Converter from="heic" to="jpg" universal />
       </div>
     </section>
   );

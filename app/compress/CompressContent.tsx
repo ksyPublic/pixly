@@ -2,102 +2,86 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Format } from "@/lib/conversions";
-import {
-  FORMATS,
-  INPUT_ACCEPT,
-  OUTPUT_FORMATS,
-  detectFormat,
-} from "@/lib/conversions";
+import { FORMATS, INPUT_ACCEPT, detectFormat } from "@/lib/conversions";
 import { convertImage, formatBytes, outputFilename } from "@/lib/convert";
-import { compressToTargetSize, supportsTargetSize } from "@/lib/compress";
+import { compressToTargetSize } from "@/lib/compress";
 import { dedupeName, makeZip } from "@/lib/zip";
 import { useI18n } from "@/lib/i18n";
+
+// Output formats worth compressing to. Both are lossy Canvas encoders, so both
+// support target-size mode (see lib/compress.ts TARGET_SIZE_FORMATS).
+const OUTPUTS: Format[] = ["jpg", "webp"];
 
 interface Item {
   id: string;
   file: File;
-  sourceFmt: Format | null;
-  status: "converting" | "done" | "error";
+  supported: boolean;
+  status: "working" | "done" | "error";
   outUrl?: string;
   outName?: string;
   outSize?: number;
+  /** True when even the lowest quality still exceeded the target size. */
+  overTarget?: boolean;
   error?: string;
 }
 
 type Settings =
-  | { mode: "quality"; quality: number }
-  | { mode: "size"; targetBytes: number };
+  | { mode: "size"; format: Format; targetBytes: number }
+  | { mode: "quality"; format: Format; quality: number };
 
-export default function Converter({
-  from,
-  to,
-  universal = false,
-}: {
-  from: Format;
-  to: Format;
-  /**
-   * Universal mode = the homepage "drop anything → pick any output" entry point:
-   * accepts every input format and shows the output-format picker. When false
-   * (the default, used by every /from-to-to landing page) the tool is FOCUSED —
-   * it accepts only `from` and always outputs `to`, so the tool matches its title.
-   */
-  universal?: boolean;
-}) {
-  const [target, setTarget] = useState<Format>(to);
+export default function CompressContent() {
+  const { t } = useI18n();
   const [items, setItems] = useState<Item[]>([]);
-  const [quality, setQuality] = useState(0.92);
-  const [mode, setMode] = useState<"quality" | "size">("quality");
+  const [format, setFormat] = useState<Format>("jpg");
+  const [mode, setMode] = useState<"size" | "quality">("size");
   const [targetKB, setTargetKB] = useState(300);
+  const [quality, setQuality] = useState(0.8);
   const [zipping, setZipping] = useState(false);
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const lossy = FORMATS[target].lossy;
-  const canSize = supportsTargetSize(target);
-  const effMode: "quality" | "size" = canSize ? mode : "quality";
-  const { t } = useI18n();
-
-  // A file is convertible on this page when it decoded to a known format AND —
-  // in focused mode — that format is exactly the page's source (`from`). Written
-  // as a type guard so `it.sourceFmt` narrows to `Format` at the call sites.
-  const isConvertible = useCallback(
-    (fmt: Format | null): fmt is Format =>
-      fmt != null && (universal || fmt === from),
-    [universal, from],
-  );
 
   const buildSettings = useCallback(
     (): Settings =>
-      effMode === "size"
-        ? { mode: "size", targetBytes: Math.max(1, targetKB) * 1024 }
-        : { mode: "quality", quality },
-    [effMode, targetKB, quality],
+      mode === "size"
+        ? { mode: "size", format, targetBytes: Math.max(1, targetKB) * 1024 }
+        : { mode: "quality", format, quality },
+    [mode, format, targetKB, quality],
   );
 
-  // Revoke object URLs on unmount to avoid leaking blob memory.
+  // Revoke object URLs on unmount so blob memory isn't leaked.
   const itemsRef = useRef(items);
   itemsRef.current = items;
   useEffect(() => {
     return () => {
-      itemsRef.current.forEach((it) => it.outUrl && URL.revokeObjectURL(it.outUrl));
+      itemsRef.current.forEach(
+        (it) => it.outUrl && URL.revokeObjectURL(it.outUrl),
+      );
     };
   }, []);
 
-  // Per-item generation token. Every (re)conversion bumps the item's gen; a
-  // conversion that finishes after a newer one was kicked off is stale and its
-  // result is discarded (and its blob revoked) instead of clobbering the fresh
-  // output and leaking the URL.
+  // Per-item generation token: a compression that finishes after a newer one was
+  // kicked off (e.g. the user changed the target) is stale — drop it and revoke.
   const genRef = useRef(new Map<string, number>());
 
-  const runConvert = useCallback(
-    async (id: string, file: File, tgt: Format, settings: Settings, gen: number) => {
+  const run = useCallback(
+    async (id: string, file: File, settings: Settings, gen: number) => {
       try {
-        const blob =
-          settings.mode === "size" && supportsTargetSize(tgt)
-            ? (await compressToTargetSize(file, tgt, settings.targetBytes)).blob
-            : await convertImage(file, tgt, {
-                quality: settings.mode === "quality" ? settings.quality : undefined,
-              });
-        if (genRef.current.get(id) !== gen) return; // superseded — drop it
+        let blob: Blob;
+        let overTarget = false;
+        if (settings.mode === "size") {
+          const res = await compressToTargetSize(
+            file,
+            settings.format,
+            settings.targetBytes,
+          );
+          blob = res.blob;
+          overTarget = res.overTarget;
+        } else {
+          blob = await convertImage(file, settings.format, {
+            quality: settings.quality,
+          });
+        }
+        if (genRef.current.get(id) !== gen) return; // superseded
         const outUrl = URL.createObjectURL(blob);
         setItems((prev) =>
           prev.map((it) =>
@@ -106,21 +90,23 @@ export default function Converter({
                   ...it,
                   status: "done",
                   outUrl,
-                  outName: outputFilename(file.name, tgt),
+                  outName: outputFilename(file.name, settings.format),
                   outSize: blob.size,
+                  overTarget,
+                  error: undefined,
                 }
               : it,
           ),
         );
       } catch (e) {
-        if (genRef.current.get(id) !== gen) return; // superseded — ignore error
+        if (genRef.current.get(id) !== gen) return;
         setItems((prev) =>
           prev.map((it) =>
             it.id === id
               ? {
                   ...it,
                   status: "error",
-                  error: e instanceof Error ? e.message : "Conversion failed.",
+                  error: e instanceof Error ? e.message : "Compression failed.",
                 }
               : it,
           ),
@@ -136,50 +122,47 @@ export default function Converter({
       if (files.length === 0) return;
       const settings = buildSettings();
       const newItems: Item[] = files.map((file) => {
-        const sourceFmt = detectFormat(file);
-        const ok = isConvertible(sourceFmt);
+        const supported = detectFormat(file) != null;
         return {
           id: crypto.randomUUID(),
           file,
-          sourceFmt,
-          status: ok ? "converting" : "error",
-          // Focused pages reject files that aren't this page's source format;
-          // universal mode only rejects genuinely undecodable files.
-          error: ok ? undefined : t("conv.unsupported"),
+          supported,
+          status: supported ? "working" : "error",
+          error: supported ? undefined : t("conv.unsupported"),
         };
       });
       setItems((prev) => [...prev, ...newItems]);
       newItems.forEach((it) => {
-        if (!isConvertible(it.sourceFmt)) return;
+        if (!it.supported) return;
         genRef.current.set(it.id, 1);
-        runConvert(it.id, it.file, target, settings, 1);
+        run(it.id, it.file, settings, 1);
       });
     },
-    [target, buildSettings, runConvert, t, isConvertible],
+    [buildSettings, run, t],
   );
 
-  // Re-encode everything when the target format, quality, or mode changes.
-  // Side effects (URL revoke, kicking off conversions) run OUTSIDE the state
-  // updater so React StrictMode's double-invoke can't leak URLs or double-fire.
-  const reconvertAll = useCallback(
-    (tgt: Format, settings: Settings) => {
+  // Re-compress everything with fresh settings. Side effects (revoke, kick off)
+  // run outside the state updater so StrictMode's double-invoke can't leak URLs.
+  const recompressAll = useCallback(
+    (settings: Settings) => {
       const current = itemsRef.current;
       current.forEach((it) => it.outUrl && URL.revokeObjectURL(it.outUrl));
       const bumped = new Map<string, number>();
       current.forEach((it) => {
-        if (!isConvertible(it.sourceFmt)) return;
+        if (!it.supported) return;
         const g = (genRef.current.get(it.id) ?? 0) + 1;
         genRef.current.set(it.id, g);
         bumped.set(it.id, g);
       });
       setItems((prev) =>
         prev.map((it) =>
-          isConvertible(it.sourceFmt)
+          it.supported
             ? {
                 ...it,
-                status: "converting" as const,
+                status: "working" as const,
                 outUrl: undefined,
                 outSize: undefined,
+                overTarget: undefined,
                 error: undefined,
               }
             : it,
@@ -187,45 +170,52 @@ export default function Converter({
       );
       current.forEach(
         (it) =>
-          isConvertible(it.sourceFmt) &&
-          runConvert(it.id, it.file, tgt, settings, bumped.get(it.id) as number),
+          it.supported &&
+          run(it.id, it.file, settings, bumped.get(it.id) as number),
       );
     },
-    [runConvert, isConvertible],
+    [run],
   );
 
   const hasItems = items.length > 0;
 
-  function changeTarget(next: Format) {
-    setTarget(next);
+  function changeFormat(next: Format) {
+    if (next === format) return;
+    setFormat(next);
     if (hasItems) {
-      const nextEff = supportsTargetSize(next) ? mode : "quality";
-      const settings: Settings =
-        nextEff === "size"
-          ? { mode: "size", targetBytes: Math.max(1, targetKB) * 1024 }
-          : { mode: "quality", quality };
-      reconvertAll(next, settings);
+      recompressAll(
+        mode === "size"
+          ? { mode: "size", format: next, targetBytes: Math.max(1, targetKB) * 1024 }
+          : { mode: "quality", format: next, quality },
+      );
     }
   }
 
-  function switchMode(next: "quality" | "size") {
+  function switchMode(next: "size" | "quality") {
     if (next === mode) return;
     setMode(next);
     if (hasItems) {
-      const settings: Settings =
+      recompressAll(
         next === "size"
-          ? { mode: "size", targetBytes: Math.max(1, targetKB) * 1024 }
-          : { mode: "quality", quality };
-      reconvertAll(target, settings);
+          ? { mode: "size", format, targetBytes: Math.max(1, targetKB) * 1024 }
+          : { mode: "quality", format, quality },
+      );
     }
   }
 
   function applyTargetSize() {
-    if (hasItems && effMode === "size") {
-      reconvertAll(target, {
+    if (hasItems && mode === "size") {
+      recompressAll({
         mode: "size",
+        format,
         targetBytes: Math.max(1, targetKB) * 1024,
       });
+    }
+  }
+
+  function applyQuality() {
+    if (hasItems && mode === "quality") {
+      recompressAll({ mode: "quality", format, quality });
     }
   }
 
@@ -258,14 +248,14 @@ export default function Converter({
       const url = URL.createObjectURL(zip);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "pixly-images.zip";
+      a.download = "pixly-compressed.zip";
       document.body.appendChild(a);
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch {
-      // A blob URL may have been revoked mid-zip (e.g. the user reconverted
-      // while zipping). Swallow it — the per-item downloads still work.
+      // A blob URL may have been revoked mid-zip (e.g. re-compressed while
+      // zipping). Swallow it — the per-item downloads still work.
     } finally {
       setZipping(false);
     }
@@ -300,7 +290,7 @@ export default function Converter({
         <input
           ref={inputRef}
           type="file"
-          accept={universal ? INPUT_ACCEPT : FORMATS[from].accept}
+          accept={INPUT_ACCEPT}
           multiple
           hidden
           onChange={(e) => {
@@ -323,111 +313,63 @@ export default function Converter({
             d="M12 16.5V4.5m0 0L7.5 9M12 4.5 16.5 9M4.5 15v3A1.5 1.5 0 0 0 6 19.5h12a1.5 1.5 0 0 0 1.5-1.5v-3"
           />
         </svg>
-        <p className="text-base font-medium">
-          {t("conv.dropOpen", { fmt: FORMATS[from].label })}
-        </p>
-        <p className="mt-1 text-sm text-muted">{t("conv.dropSub")}</p>
+        <p className="text-base font-medium">{t("compress.dropOpen")}</p>
+        <p className="mt-1 text-sm text-muted">{t("compress.dropSub")}</p>
       </div>
 
-      {/* Controls: target format + quality / target size */}
+      {/* Controls: output format + quality / target size */}
       <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-3">
-        {universal ? (
-          <div className="flex items-center gap-2">
-            <label htmlFor="target" className="text-sm text-muted">
-              {t("conv.to")}
-            </label>
-            <select
-              id="target"
-              value={target}
-              onChange={(e) => changeTarget(e.target.value as Format)}
-              className="rounded-lg border border-line-strong bg-surface px-3 py-1.5 text-sm font-medium text-ink focus:border-accent focus:outline-none"
-            >
-              {OUTPUT_FORMATS.map((f) => (
-                <option key={f} value={f}>
-                  {FORMATS[f].label}
-                </option>
-              ))}
-            </select>
-          </div>
-        ) : (
-          // Focused mode: the output is fixed to `to`, so instead of a picker we
-          // show a static, token-styled label of the pair (e.g. "PNG → JPG").
-          <div
-            className="inline-flex items-center gap-2 rounded-lg border border-line-strong bg-surface px-3 py-1.5 text-sm font-semibold text-ink"
-            aria-label={`${FORMATS[from].label} → ${FORMATS[to].label}`}
+        <div className="flex items-center gap-2">
+          <label htmlFor="cformat" className="text-sm text-muted">
+            {t("compress.format")}
+          </label>
+          <select
+            id="cformat"
+            value={format}
+            onChange={(e) => changeFormat(e.target.value as Format)}
+            className="rounded-lg border border-line-strong bg-surface px-3 py-1.5 text-sm font-medium text-ink focus:border-accent focus:outline-none"
           >
-            <span>{FORMATS[from].label}</span>
-            <span aria-hidden className="text-accent">
-              →
-            </span>
-            <span>{FORMATS[to].label}</span>
-          </div>
-        )}
+            {OUTPUTS.map((f) => (
+              <option key={f} value={f}>
+                {FORMATS[f].label}
+              </option>
+            ))}
+          </select>
+        </div>
 
-        {/* Quality ↔ Target size toggle (only where size targeting is possible) */}
-        {canSize && (
-          <div className="inline-flex rounded-lg border border-line-strong p-0.5">
-            <button
-              type="button"
-              onClick={() => switchMode("quality")}
-              aria-pressed={effMode === "quality"}
-              className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
-                effMode === "quality"
-                  ? "bg-accent text-white"
-                  : "text-muted hover:text-ink"
-              }`}
-            >
-              {t("conv.modeQuality")}
-            </button>
-            <button
-              type="button"
-              onClick={() => switchMode("size")}
-              aria-pressed={effMode === "size"}
-              className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
-                effMode === "size"
-                  ? "bg-accent text-white"
-                  : "text-muted hover:text-ink"
-              }`}
-            >
-              {t("conv.modeSize")}
-            </button>
-          </div>
-        )}
+        {/* Target size ↔ Quality toggle */}
+        <div className="inline-flex rounded-lg border border-line-strong p-0.5">
+          <button
+            type="button"
+            onClick={() => switchMode("size")}
+            aria-pressed={mode === "size"}
+            className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
+              mode === "size" ? "bg-accent text-white" : "text-muted hover:text-ink"
+            }`}
+          >
+            {t("conv.modeSize")}
+          </button>
+          <button
+            type="button"
+            onClick={() => switchMode("quality")}
+            aria-pressed={mode === "quality"}
+            className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
+              mode === "quality"
+                ? "bg-accent text-white"
+                : "text-muted hover:text-ink"
+            }`}
+          >
+            {t("conv.modeQuality")}
+          </button>
+        </div>
 
-        {effMode === "quality" && lossy && (
-          <div className="flex flex-1 items-center gap-3">
-            <label htmlFor="quality" className="text-sm text-muted">
-              {t("conv.quality")}
-            </label>
-            <input
-              id="quality"
-              type="range"
-              min={0.4}
-              max={1}
-              step={0.01}
-              value={quality}
-              onChange={(e) => setQuality(Number(e.target.value))}
-              onMouseUp={() =>
-                hasItems && reconvertAll(target, { mode: "quality", quality })
-              }
-              onTouchEnd={() =>
-                hasItems && reconvertAll(target, { mode: "quality", quality })
-              }
-              className="h-1 flex-1 cursor-pointer accent-[var(--accent)]"
-            />
-            <span className="w-10 text-right text-sm tabular-nums text-muted">
-              {Math.round(quality * 100)}
-            </span>
-          </div>
-        )}
-
-        {effMode === "size" && (
+        {mode === "size" && (
           <div className="flex items-center gap-2">
-            <label htmlFor="targetkb" className="text-sm text-muted">
+            <label htmlFor="ctargetkb" className="text-sm text-muted">
               {t("conv.targetSize")}
             </label>
             <input
-              id="targetkb"
+              id="ctargetkb"
               type="number"
               min={5}
               step={10}
@@ -445,6 +387,29 @@ export default function Converter({
             <span className="text-sm text-muted">KB</span>
           </div>
         )}
+
+        {mode === "quality" && (
+          <div className="flex flex-1 items-center gap-3">
+            <label htmlFor="cquality" className="text-sm text-muted">
+              {t("conv.quality")}
+            </label>
+            <input
+              id="cquality"
+              type="range"
+              min={0.4}
+              max={1}
+              step={0.01}
+              value={quality}
+              onChange={(e) => setQuality(Number(e.target.value))}
+              onMouseUp={applyQuality}
+              onTouchEnd={applyQuality}
+              className="h-1 flex-1 cursor-pointer accent-[var(--accent)]"
+            />
+            <span className="w-10 text-right text-sm tabular-nums text-muted">
+              {Math.round(quality * 100)}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Results */}
@@ -452,7 +417,10 @@ export default function Converter({
         <div className="mt-6">
           <div className="mb-3 flex items-center justify-between gap-3">
             <span className="text-sm text-muted">
-              {t("conv.converted", { done: doneItems.length, total: items.length })}
+              {t("compress.compressed", {
+                done: doneItems.length,
+                total: items.length,
+              })}
             </span>
             <div className="flex items-center gap-4">
               {doneItems.length >= 2 && (
@@ -484,11 +452,9 @@ export default function Converter({
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">
                     {it.file.name}
-                    {isConvertible(it.sourceFmt) && (
-                      <span className="ml-2 text-xs font-normal text-muted">
-                        {FORMATS[it.sourceFmt].label} → {FORMATS[target].label}
-                      </span>
-                    )}
+                    <span className="ml-2 text-xs font-normal text-muted">
+                      → {FORMATS[format].label}
+                    </span>
                   </p>
                   <p className="text-xs text-muted">
                     {formatBytes(it.file.size)}
@@ -501,14 +467,19 @@ export default function Converter({
                             −{Math.round((1 - it.outSize / it.file.size) * 100)}%
                           </span>
                         )}
+                        {it.overTarget && (
+                          <span className="ml-1 text-muted">
+                            · {t("compress.overTarget")}
+                          </span>
+                        )}
                       </>
                     )}
                   </p>
                 </div>
 
-                {it.status === "converting" && (
+                {it.status === "working" && (
                   <span className="text-xs text-muted">
-                    {t("conv.converting")}
+                    {t("compress.working")}
                   </span>
                 )}
                 {it.status === "error" && (

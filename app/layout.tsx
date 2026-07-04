@@ -23,14 +23,54 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const OG_TITLE = "Pixly — Free, Private Image Converter (No Upload)";
+const OG_DESCRIPTION =
+  "Convert HEIC, PNG, JPG and WebP images for free. 100% in your browser — your files never leave your device. No upload, no sign-up.";
+
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "Pixly — Free, Private Image Converter (No Upload)",
+    default: OG_TITLE,
     template: "%s",
   },
-  description:
-    "Convert HEIC, PNG, JPG and WebP images for free. 100% in your browser — your files never leave your device. No upload, no sign-up.",
+  description: OG_DESCRIPTION,
+  applicationName: "Pixly",
+  keywords: [
+    "HEIC to JPG",
+    "image converter",
+    "convert HEIC",
+    "compress image",
+    "crop image",
+    "PNG to JPG",
+    "WebP converter",
+    "free image converter",
+    "이미지 변환",
+    "HEIC 변환",
+    "사진 용량 줄이기",
+  ],
+  // og:image and twitter:image are injected automatically from
+  // app/opengraph-image.tsx and app/twitter-image.tsx — do not set images here.
+  openGraph: {
+    type: "website",
+    siteName: "Pixly",
+    title: OG_TITLE,
+    description: OG_DESCRIPTION,
+    url: "/",
+    locale: "ko_KR",
+    alternateLocale: ["en_US"],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: OG_TITLE,
+    description: OG_DESCRIPTION,
+  },
+  // icon.svg / apple-icon.tsx auto-emit the <link> tags; this adds the iOS
+  // web-app niceties for home-screen installs.
+  appleWebApp: {
+    capable: true,
+    title: "Pixly",
+    statusBarStyle: "default",
+  },
 };
 
 // Runs before paint so the saved theme applies with no flash.

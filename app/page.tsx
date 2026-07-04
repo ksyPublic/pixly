@@ -6,6 +6,9 @@ import { CONVERSIONS, FORMATS, conversionSlug } from "@/lib/conversions";
 import { useI18n } from "@/lib/i18n";
 import { useScrollReveal } from "@/components/useScrollReveal";
 import HeroMotion from "@/components/HeroMotion";
+import JsonLd from "@/components/JsonLd";
+import { organizationSchema, webSiteSchema } from "@/lib/jsonld";
+import { SITE_URL } from "@/lib/site";
 
 // Per-item reveal stagger, expressed through the shared `--reveal-stagger`
 // token so the cascade step lives in one place (app/globals.css).
@@ -63,87 +66,190 @@ function Chevron({ className }: { className?: string }) {
   );
 }
 
-// Hero product visual — a schematic that shows the two core actions at a glance:
-// a source photo with a live crop frame (crop) transforming into a converted
-// result tile (HEIC → JPG). Pure inline SVG, token-coloured so it adapts to
-// light/dark, and scales down cleanly to mobile via the viewBox. Decorative:
-// the surrounding copy carries the meaning, so it's aria-hidden.
+// Hero product visual — a mini photo-editor window so the toolkit reads as
+// photo *editing* at a glance: a framed app with an edit toolbar (crop / rotate
+// / adjust), a photo on the canvas under a live rule-of-thirds crop selection,
+// and a bottom bar that spells out the convert step (HEIC → JPG · PNG · WebP).
+// Pure inline SVG, token-coloured so it adapts to light/dark and scales down to
+// mobile via the viewBox. Decorative — the surrounding copy carries the
+// meaning — so it's aria-hidden. Any ambient motion reuses the shared
+// pixly-crop-live / pixly-flow / pixly-arrive loops (reduced-motion-safe).
 function HeroVisual({ className }: { className?: string }) {
   return (
     <svg
-      viewBox="0 8 360 134"
+      viewBox="0 0 360 220"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"
       className={className}
     >
       <defs>
-        <clipPath id="pixly-hero-a">
-          <rect x="10" y="22" width="140" height="112" rx="14" />
-        </clipPath>
-        <clipPath id="pixly-hero-b">
-          <rect x="210" y="30" width="132" height="96" rx="14" />
+        <clipPath id="pixly-hero-photo">
+          <rect x="18" y="54" width="324" height="100" rx="12" />
         </clipPath>
       </defs>
 
-      {/* Source photo */}
-      <rect x="10" y="22" width="140" height="112" rx="14" className="fill-surface" />
-      <g clipPath="url(#pixly-hero-a)">
-        <circle cx="112" cy="52" r="10" className="fill-accent" />
-        <path
-          d="M10 134 L52 84 L84 116 L112 80 L150 134 Z"
-          strokeWidth="2"
-          strokeLinejoin="round"
-          className="fill-surface-2 stroke-line"
-        />
-      </g>
+      {/* Editor window frame */}
       <rect
-        x="10"
-        y="22"
-        width="140"
-        height="112"
-        rx="14"
+        x="6"
+        y="8"
+        width="348"
+        height="204"
+        rx="18"
         strokeWidth="2"
-        className="stroke-line"
+        className="fill-surface stroke-line"
       />
 
-      {/* Crop overlay — rule-of-thirds grid + corner brackets + handles */}
-      <g strokeWidth="1" opacity="0.3" className="stroke-accent">
-        <path d="M62.7 44 V116" />
-        <path d="M97.3 44 V116" />
-        <path d="M28 68 H132" />
-        <path d="M28 92 H132" />
-      </g>
-      <g strokeWidth="3" strokeLinecap="round" className="stroke-accent pixly-crop-live">
-        <path d="M28 44 H40" />
-        <path d="M28 44 V56" />
-        <path d="M132 44 H120" />
-        <path d="M132 44 V56" />
-        <path d="M28 116 H40" />
-        <path d="M28 116 V104" />
-        <path d="M132 116 H120" />
-        <path d="M132 116 V104" />
-      </g>
-      <g className="fill-accent pixly-crop-live">
-        <rect x="25.5" y="41.5" width="5" height="5" rx="1.5" />
-        <rect x="129.5" y="41.5" width="5" height="5" rx="1.5" />
-        <rect x="25.5" y="113.5" width="5" height="5" rx="1.5" />
-        <rect x="129.5" y="113.5" width="5" height="5" rx="1.5" />
+      {/* Title bar: window dots (left) + edit toolbar (right) */}
+      <g className="fill-line-strong">
+        <circle cx="22" cy="26" r="3" />
+        <circle cx="32" cy="26" r="3" />
+        <circle cx="42" cy="26" r="3" />
       </g>
 
-      {/* Source format tag */}
+      {/* Crop tool button (active) */}
       <rect
-        x="16"
-        y="14"
-        width="46"
-        height="19"
-        rx="6"
+        x="226"
+        y="15"
+        width="30"
+        height="22"
+        rx="8"
+        strokeWidth="1.5"
+        className="fill-accent-soft stroke-accent"
+      />
+      <g
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="stroke-accent"
+      >
+        <path d="M235 21 V31 H245" />
+        <path d="M237 23 H247 V33" />
+      </g>
+
+      {/* Rotate tool button */}
+      <rect
+        x="266"
+        y="15"
+        width="30"
+        height="22"
+        rx="8"
+        strokeWidth="1.5"
+        className="fill-surface-2 stroke-line"
+      />
+      <g
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="stroke-muted"
+      >
+        <path d="M277 29 A 5.5 5.5 0 1 1 281 20.5" />
+        <path d="M278.2 18.4 L281.6 20.4 L280 23.9" />
+      </g>
+
+      {/* Adjust (sliders) tool button */}
+      <rect
+        x="306"
+        y="15"
+        width="30"
+        height="22"
+        rx="8"
+        strokeWidth="1.5"
+        className="fill-surface-2 stroke-line"
+      />
+      <g strokeWidth="1.6" strokeLinecap="round" className="stroke-muted">
+        <path d="M315 22.5 H327" />
+        <path d="M315 29.5 H327" />
+      </g>
+      <g strokeWidth="1.4" className="fill-surface-2 stroke-muted">
+        <circle cx="319" cy="22.5" r="1.9" />
+        <circle cx="323" cy="29.5" r="1.9" />
+      </g>
+
+      {/* Title-bar divider */}
+      <path d="M10 44 H350" strokeWidth="1.5" className="stroke-line" />
+
+      {/* Photo canvas */}
+      <g clipPath="url(#pixly-hero-photo)">
+        <rect x="18" y="54" width="324" height="100" className="fill-accent-soft" />
+        {/* Sun */}
+        <circle cx="286" cy="82" r="13" className="fill-accent" />
+        {/* Layered hills */}
+        <path
+          d="M18 154 L74 108 L128 136 L176 100 L232 130 L288 100 L342 134 L342 154 Z"
+          className="fill-surface"
+        />
+        <path
+          d="M18 154 L64 132 L118 148 L168 128 L226 150 L286 126 L342 146 L342 154 Z"
+          className="fill-surface-2"
+        />
+        {/* Dim the area outside the crop selection (crop-UI letterboxing) */}
+        <g className="fill-bg" opacity="0.5">
+          <rect x="18" y="54" width="324" height="10" />
+          <rect x="18" y="144" width="324" height="10" />
+          <rect x="18" y="64" width="22" height="80" />
+          <rect x="320" y="64" width="22" height="80" />
+        </g>
+        {/* Rule-of-thirds grid inside the crop selection */}
+        <g strokeWidth="1" opacity="0.35" className="stroke-accent">
+          <path d="M133.3 64 V144" />
+          <path d="M226.7 64 V144" />
+          <path d="M40 90.7 H320" />
+          <path d="M40 117.3 H320" />
+        </g>
+      </g>
+
+      {/* Crop selection border + corner brackets (breathe via pixly-crop-live) */}
+      <rect
+        x="40"
+        y="64"
+        width="280"
+        height="80"
+        strokeWidth="1.5"
+        className="stroke-accent"
+      />
+      <g
+        strokeWidth="3"
+        strokeLinecap="round"
+        className="stroke-accent pixly-crop-live"
+      >
+        <path d="M40 64 H54" />
+        <path d="M40 64 V78" />
+        <path d="M320 64 H306" />
+        <path d="M320 64 V78" />
+        <path d="M40 144 H54" />
+        <path d="M40 144 V130" />
+        <path d="M320 144 H306" />
+        <path d="M320 144 V130" />
+      </g>
+      {/* Crop handles: 4 corners + 4 edge midpoints */}
+      <g className="fill-accent pixly-crop-live">
+        <rect x="37" y="61" width="6" height="6" rx="1.5" />
+        <rect x="317" y="61" width="6" height="6" rx="1.5" />
+        <rect x="37" y="141" width="6" height="6" rx="1.5" />
+        <rect x="317" y="141" width="6" height="6" rx="1.5" />
+        <rect x="177" y="61" width="6" height="6" rx="1.5" />
+        <rect x="177" y="141" width="6" height="6" rx="1.5" />
+        <rect x="37" y="101" width="6" height="6" rx="1.5" />
+        <rect x="317" y="101" width="6" height="6" rx="1.5" />
+      </g>
+
+      {/* Convert bar — the source format flows into the chosen output formats */}
+      <rect x="18" y="162" width="324" height="42" rx="13" className="fill-surface-2" />
+
+      {/* Source format chip */}
+      <rect
+        x="60"
+        y="172"
+        width="48"
+        height="22"
+        rx="7"
         strokeWidth="1.5"
         className="fill-surface stroke-line"
       />
       <text
-        x="39"
-        y="27"
+        x="84"
+        y="186.5"
         textAnchor="middle"
         fontSize="11"
         fontWeight="600"
@@ -153,50 +259,79 @@ function HeroVisual({ className }: { className?: string }) {
         HEIC
       </text>
 
-      {/* Transform arrow */}
+      {/* Convert arrow (drifts via pixly-flow) */}
       <g
-        strokeWidth="4"
+        strokeWidth="3"
         strokeLinecap="round"
         strokeLinejoin="round"
         className="stroke-accent pixly-flow"
       >
-        <path d="M166 78 H198" />
-        <path d="M190 70 L198 78 L190 86" />
+        <path d="M116 183 H136" />
+        <path d="M130 178 L136 183 L130 188" />
       </g>
 
-      {/* Result photo */}
-      <rect x="210" y="30" width="132" height="96" rx="14" className="fill-surface" />
-      <g clipPath="url(#pixly-hero-b)">
-        <circle cx="306" cy="58" r="8" className="fill-accent" />
-        <path
-          d="M210 126 L246 90 L272 112 L300 86 L342 126 Z"
-          strokeWidth="2"
-          strokeLinejoin="round"
-          className="fill-surface-2 stroke-line"
-        />
-      </g>
+      {/* Selected output chip (settles via pixly-arrive) */}
       <rect
-        x="210"
-        y="30"
-        width="132"
-        height="96"
-        rx="14"
-        strokeWidth="2"
-        className="stroke-line"
+        x="144"
+        y="172"
+        width="44"
+        height="22"
+        rx="7"
+        strokeWidth="1.5"
+        className="fill-accent-soft stroke-accent pixly-arrive"
       />
-
-      {/* Result format tag */}
-      <rect x="214" y="20" width="42" height="19" rx="6" className="fill-accent-soft pixly-arrive" />
       <text
-        x="235"
-        y="33"
+        x="166"
+        y="186.5"
         textAnchor="middle"
         fontSize="11"
-        fontWeight="600"
+        fontWeight="700"
         letterSpacing="0.4"
         className="fill-accent font-mono"
       >
         JPG
+      </text>
+
+      {/* Alternate output chips */}
+      <rect
+        x="196"
+        y="172"
+        width="44"
+        height="22"
+        rx="7"
+        strokeWidth="1.5"
+        className="fill-surface stroke-line"
+      />
+      <text
+        x="218"
+        y="186.5"
+        textAnchor="middle"
+        fontSize="11"
+        fontWeight="600"
+        letterSpacing="0.4"
+        className="fill-muted font-mono"
+      >
+        PNG
+      </text>
+      <rect
+        x="248"
+        y="172"
+        width="50"
+        height="22"
+        rx="7"
+        strokeWidth="1.5"
+        className="fill-surface stroke-line"
+      />
+      <text
+        x="273"
+        y="186.5"
+        textAnchor="middle"
+        fontSize="11"
+        fontWeight="600"
+        letterSpacing="0.4"
+        className="fill-muted font-mono"
+      >
+        WebP
       </text>
     </svg>
   );
@@ -271,12 +406,59 @@ function ConverterCard({ slug }: { slug: string }) {
   );
 }
 
+// PDF tools — keyword-targeted static pages, surfaced here for discovery +
+// internal linking. Titles are format names (universal); descriptions are
+// localized via the pdf.* dictionary.
+const PDF_TOOLS_HOME = [
+  { slug: "jpg-to-pdf", from: "JPG", to: "PDF", descKey: "pdf.cardJpgToPdf" },
+  { slug: "png-to-pdf", from: "PNG", to: "PDF", descKey: "pdf.cardPngToPdf" },
+  { slug: "pdf-to-jpg", from: "PDF", to: "JPG", descKey: "pdf.cardPdfToJpg" },
+  { slug: "pdf-to-png", from: "PDF", to: "PNG", descKey: "pdf.cardPdfToPng" },
+] as const;
+
+function PdfToolCard({
+  slug,
+  from,
+  to,
+  desc,
+}: {
+  slug: string;
+  from: string;
+  to: string;
+  desc: string;
+}) {
+  return (
+    <Link
+      href={`/${slug}/`}
+      className="group flex items-center justify-between gap-3 rounded-2xl border border-line bg-surface px-5 py-4 shadow-[var(--shadow)] transition-all duration-200 hover:-translate-y-0.5 hover:border-accent hover:shadow-[0_18px_40px_-22px_var(--accent)]"
+    >
+      <span className="min-w-0">
+        <span className="flex items-center gap-2.5 font-display text-lg font-bold">
+          {from}
+          <Arrow />
+          {to}
+        </span>
+        <span className="mt-0.5 block truncate text-sm text-muted">{desc}</span>
+      </span>
+      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-line text-muted transition-colors group-hover:border-accent group-hover:bg-accent group-hover:text-white">
+        <Chevron />
+      </span>
+    </Link>
+  );
+}
+
 export default function Home() {
   const { t } = useI18n();
   const rootRef = useRef<HTMLElement>(null);
   useScrollReveal(rootRef);
   return (
     <main ref={rootRef} className="flex-1">
+      <JsonLd
+        data={[
+          webSiteSchema("Pixly", SITE_URL),
+          organizationSchema("Pixly", SITE_URL),
+        ]}
+      />
       {/* Hero */}
       <section className="relative overflow-hidden">
         <HeroMotion />
@@ -434,6 +616,23 @@ export default function Home() {
         </Link>
       </section>
 
+      {/* PDF tools */}
+      <section className="mx-auto max-w-5xl px-5 pt-16 sm:pt-24">
+        <SectionHead title={t("pdf.homeTitle")} sub={t("pdf.homeSub")} />
+        <div className="mt-8 grid grid-cols-1 gap-3 sm:mt-10 sm:grid-cols-2">
+          {PDF_TOOLS_HOME.map((tool, i) => (
+            <div key={tool.slug} className="reveal" data-reveal style={stepDelay(i)}>
+              <PdfToolCard
+                slug={tool.slug}
+                from={tool.from}
+                to={tool.to}
+                desc={t(tool.descKey)}
+              />
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* How it works */}
       <section className="mx-auto max-w-5xl px-5 pt-16 sm:pt-24">
         <SectionHead title={t("home.howto")} />
@@ -468,7 +667,10 @@ export default function Home() {
       </section>
 
       {/* All tools */}
-      <section className="mx-auto max-w-5xl px-5 pb-20 pt-16 sm:pb-28 sm:pt-24">
+      <section
+        id="all-tools"
+        className="mx-auto max-w-5xl scroll-mt-20 px-5 pb-20 pt-16 sm:pb-28 sm:pt-24"
+      >
         <SectionHead title={t("home.all", { n: CONVERSIONS.length })} />
         <ul className="mt-8 grid grid-cols-1 gap-2.5 sm:mt-10 sm:grid-cols-2 lg:grid-cols-3">
           {CONVERSIONS.map((c, i) => {

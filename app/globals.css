@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /* ── Pixly design tokens ──────────────────────────────────────────────
-   Clean editorial-tech: paper + ink neutrals, one confident brand blue
+   Warm editorial-tech: paper + ink neutrals, one confident tangerine
    accent, distinctive display type. Themed via CSS variables so most
    components don't need dark: variants. */
 
@@ -13,9 +13,9 @@
   --muted: #61656f;
   --line: rgba(20, 22, 28, 0.1);
   --line-strong: rgba(20, 22, 28, 0.16);
-  --accent: #2563eb;
-  --accent-ink: #1d4ed8;
-  --accent-soft: rgba(37, 99, 235, 0.1);
+  --accent: #ff5a2c;
+  --accent-ink: #e8431a;
+  --accent-soft: rgba(255, 90, 44, 0.1);
   --good: #0e9f6e;
   --shadow: 0 1px 2px rgba(20, 22, 28, 0.04), 0 8px 24px -12px rgba(20, 22, 28, 0.16);
 }
@@ -29,9 +29,9 @@
     --muted: #9aa0ac;
     --line: rgba(238, 241, 246, 0.12);
     --line-strong: rgba(238, 241, 246, 0.2);
-    --accent: #5c93f8;
-    --accent-ink: #93b7ff;
-    --accent-soft: rgba(92, 147, 248, 0.16);
+    --accent: #ff7a45;
+    --accent-ink: #ff9b70;
+    --accent-soft: rgba(255, 122, 69, 0.16);
     --good: #34d399;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 32px -14px rgba(0, 0, 0, 0.6);
   }
@@ -45,9 +45,9 @@
   --muted: #9aa0ac;
   --line: rgba(238, 241, 246, 0.12);
   --line-strong: rgba(238, 241, 246, 0.2);
-  --accent: #5c93f8;
-  --accent-ink: #93b7ff;
-  --accent-soft: rgba(92, 147, 248, 0.16);
+  --accent: #ff7a45;
+  --accent-ink: #ff9b70;
+  --accent-soft: rgba(255, 122, 69, 0.16);
   --good: #34d399;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 32px -14px rgba(0, 0, 0, 0.6);
 }
