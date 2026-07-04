@@ -46,9 +46,6 @@ const DICT = {
     "home.cropDesc":
       "상품 사진이나 인물 사진을 불러오면 중요한 부분을 알아서 찾아 원하는 비율로 잘라드려요. 직접 세밀하게 다듬고 바로 저장하세요.",
     "home.cropCta": "지금 써보기 →",
-    "home.startTitle": "지금 바로 변환해 보세요",
-    "home.startSub": "파일을 끌어다 놓으면 브라우저 안에서 바로 변환돼요.",
-    "home.formatHelp": "잘 모르겠다면 JPG를 고르세요 — 거의 모든 곳에서 열려요.",
 
     "benefit.heic-to-jpg": "아이폰 사진을 어디서나 열리는 형식으로",
     "benefit.png-to-webp": "화질은 그대로, 용량은 가볍게",
@@ -75,10 +72,10 @@ const DICT = {
 
     "conv.dropOpen": "{fmt} 파일을 놓거나 클릭해서 선택",
     "conv.dropSub": "브라우저에서 즉시 변환 · 업로드 없음",
-    "conv.to": "변환 대상",
     "conv.quality": "품질",
     "conv.modeQuality": "품질",
     "conv.modeSize": "용량 맞추기",
+    "conv.sizeShort": "용량",
     "conv.targetSize": "목표 용량",
     "conv.converted": "{done}/{total} 변환됨",
     "conv.clear": "모두 지우기",
@@ -219,15 +216,33 @@ const DICT = {
       "네. 자르기와 피사체 인식 모두 내 기기의 브라우저 안에서 처리돼요. 사진이 서버로 전송되지 않아서, 페이지를 한 번 열어두면 인터넷이 끊겨도 동작해요.",
 
     "about.h1": "Pixly 소개",
+    "about.lead":
+      "Pixly는 누구나 무료로 쓸 수 있는, 프라이버시 중심의 브라우저 기반 이미지 도구입니다. 설치도 회원가입도 없이, 모든 작업이 당신의 브라우저 안에서 이뤄집니다.",
     "about.p1":
-      "Pixly는 단순한 원칙에서 출발한 무료 이미지 변환기입니다. 당신의 사진은 당신의 것입니다. 대부분의 온라인 변환기는 파일을 서버에 올려서 처리하지만, Pixly는 그러지 않습니다. 모든 변환은 브라우저에 이미 들어 있는 이미지 엔진을 이용해 당신의 브라우저 안에서 처리됩니다.",
-    "about.p2":
-      "덕분에 이미지가 인터넷을 오가지 않고, 남의 서버에 저장되지 않으며, 어디에도 기록되지 않습니다. 업로드·다운로드 왕복이 없어 더 빠르고, 페이지를 한 번 불러온 뒤에는 연결이 끊겨도 동작합니다.",
-    "about.p3":
-      "HEIC(아이폰이 쓰는 사진 형식), JPG, PNG, WebP 같은 일상적인 형식을 지원하며, 더 많은 형식을 추가하고 있습니다. 계정도, 워터마크도, 변환 개수 제한도 없습니다.",
+      "저희는 단순한 원칙에서 출발했습니다. 당신의 사진은 당신의 것입니다. 대부분의 온라인 이미지 도구는 파일을 서버에 올려 처리하지만, Pixly는 그러지 않습니다. 변환부터 자르기까지 모든 과정이, 브라우저에 이미 들어 있는 이미지 엔진을 이용해 당신의 기기 안에서 처리됩니다.",
+    "about.doTitle": "무엇을 할 수 있나요",
+    "about.do":
+      "Pixly는 일상에서 자주 필요한 이미지 작업을 한곳에 모았습니다.",
+    "about.toolConvert": "형식 변환",
+    "about.toolConvertDesc":
+      "HEIC·PNG·JPG·WebP·AVIF·GIF 등 널리 쓰이는 형식 사이를 오가는 27가지 변환을 지원합니다.",
+    "about.toolCompress": "용량 압축",
+    "about.toolCompressDesc": "원하는 파일 크기에 맞춰 이미지를 가볍게 줄여 줍니다.",
+    "about.toolCrop": "스마트 자르기",
+    "about.toolCropDesc":
+      "사진에서 중요한 부분을 알아서 찾아 원하는 비율로 잘라 줍니다.",
+    "about.toolPdf": "PDF 변환",
+    "about.toolPdfDesc":
+      "여러 이미지를 하나의 PDF로 묶거나, PDF를 다시 이미지로 풀어냅니다.",
+    "about.doNote": "계정도, 워터마크도, 파일 개수나 크기 제한도 없습니다.",
+    "about.privacyTitle": "모든 처리는 브라우저 안에서",
+    "about.privacy":
+      "당신이 선택한 파일은 어떤 서버에도 업로드되지 않습니다. 이미지가 인터넷을 오갈 일이 없어 더 빠르고, 저희를 포함해 그 누구도 파일을 보거나 저장하지 않습니다. 페이지를 한 번 불러온 뒤에는 인터넷 연결이 끊겨도 도구가 그대로 동작합니다.",
     "about.freeTitle": "어떻게 무료로 유지되나요",
     "about.free":
-      "Pixly는 방해되지 않는 광고로 운영됩니다. 이미지를 처리하는 서버가 없어 운영 비용이 낮기 때문에, 도구를 모두에게 무료로 제공할 수 있습니다.",
+      "Pixly는 방해되지 않는 광고로 운영됩니다. 이미지를 처리하는 서버가 없어 운영 비용이 낮은 덕분에, 모든 기능을 모두에게 무료로 제공할 수 있습니다.",
+    "about.closing":
+      "Pixly는 작지만 꾸준히 나아지는 도구입니다. 빠르고, 정직하며, 프라이버시를 지키는 이미지 도구를 계속 만들어 가겠습니다.",
 
     "privacy.h1": "개인정보 처리방침",
     "privacy.updated": "최종 업데이트: 2026",
@@ -298,9 +313,6 @@ const DICT = {
     "home.cropDesc":
       "Drop in a product shot or portrait and Pixly finds what matters, then crops it to any ratio you like. Fine-tune by hand and save in one click.",
     "home.cropCta": "Try it now →",
-    "home.startTitle": "Convert right here",
-    "home.startSub": "Drop a file — it converts instantly, right in your browser.",
-    "home.formatHelp": "Not sure which to pick? Choose JPG — it opens almost everywhere.",
 
     "benefit.heic-to-jpg": "iPhone photos that open anywhere",
     "benefit.png-to-webp": "Same look, much smaller file",
@@ -327,10 +339,10 @@ const DICT = {
 
     "conv.dropOpen": "Drop {fmt} files here, or click to browse",
     "conv.dropSub": "Converted instantly in your browser · never uploaded",
-    "conv.to": "Convert to",
     "conv.quality": "Quality",
     "conv.modeQuality": "Quality",
     "conv.modeSize": "Target size",
+    "conv.sizeShort": "Size",
     "conv.targetSize": "Target size",
     "conv.converted": "{done}/{total} converted",
     "conv.clear": "Clear all",
@@ -471,15 +483,34 @@ const DICT = {
       "Yes. The cropping and subject detection both run locally in your browser. Your photo is never sent to a server, so it works even offline once the page has loaded.",
 
     "about.h1": "About Pixly",
+    "about.lead":
+      "Pixly is a free, privacy-first image toolkit that runs entirely in your browser. No installs, no accounts — every task happens on your own device.",
     "about.p1":
-      "Pixly is a free image converter built on a simple idea: your photos are yours. Most online converters upload your files to a server to process them. Pixly doesn't. Every conversion happens locally, in your own browser, using the same image engine your browser already ships with.",
-    "about.p2":
-      "That means your images never travel across the internet, never sit on someone else's server, and never get logged. It's also faster — there's no upload or download round-trip — and it works even if your connection drops after the page loads.",
-    "about.p3":
-      "We support common everyday formats like HEIC (the photo format iPhones use), JPG, PNG, and WebP, with more on the way. There are no accounts, no watermarks, and no limits on how many files you convert.",
-    "about.freeTitle": "How it stays free",
+      "We started from a simple principle: your photos are yours. Most online image tools upload your files to a server before they can process them. Pixly doesn't. From converting to cropping, everything runs on your device using the image engine your browser already ships with.",
+    "about.doTitle": "What Pixly does",
+    "about.do":
+      "Pixly brings the image tasks you reach for most often into one place.",
+    "about.toolConvert": "Format conversion",
+    "about.toolConvertDesc":
+      "27 conversions across widely used formats, including HEIC, PNG, JPG, WebP, AVIF, and GIF.",
+    "about.toolCompress": "Compression",
+    "about.toolCompressDesc": "Shrink images down to a target file size.",
+    "about.toolCrop": "Smart cropping",
+    "about.toolCropDesc":
+      "Automatically finds the important part of a photo and crops it to the ratio you need.",
+    "about.toolPdf": "PDF tools",
+    "about.toolPdfDesc":
+      "Combine several images into a single PDF, or turn a PDF back into images.",
+    "about.doNote":
+      "There are no accounts, no watermarks, and no limits on file count or size.",
+    "about.privacyTitle": "Everything runs in your browser",
+    "about.privacy":
+      "The files you choose are never uploaded to any server. Because your images never travel across the internet, Pixly is faster — and no one, including us, ever sees or stores them. Once the page has loaded, the tools keep working even if your connection drops.",
+    "about.freeTitle": "How Pixly stays free",
     "about.free":
-      "Pixly is supported by unobtrusive advertising. Because there are no servers processing your images, running costs are low — so we can keep the tools free for everyone.",
+      "Pixly is supported by unobtrusive advertising. Because there are no servers processing your images, our running costs stay low — which lets us keep every tool free for everyone.",
+    "about.closing":
+      "Pixly is a small tool that keeps getting better. We're committed to building image tools that stay fast, honest, and private.",
 
     "privacy.h1": "Privacy Policy",
     "privacy.updated": "Last updated: 2026",

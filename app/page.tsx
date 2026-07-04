@@ -66,273 +66,165 @@ function Chevron({ className }: { className?: string }) {
   );
 }
 
-// Hero product visual — a mini photo-editor window so the toolkit reads as
-// photo *editing* at a glance: a framed app with an edit toolbar (crop / rotate
-// / adjust), a photo on the canvas under a live rule-of-thirds crop selection,
-// and a bottom bar that spells out the convert step (HEIC → JPG · PNG · WebP).
-// Pure inline SVG, token-coloured so it adapts to light/dark and scales down to
-// mobile via the viewBox. Decorative — the surrounding copy carries the
-// meaning — so it's aria-hidden. Any ambient motion reuses the shared
-// pixly-crop-live / pixly-flow / pixly-arrive loops (reduced-motion-safe).
+// Hero brand artwork — an abstract "pixel dissolve". A bold tangerine disc
+// (Pixly = pixels/images) whose right edge disintegrates into a modular grid of
+// squares that shrink, fade and scatter into open space, ringed by two thin
+// concentric arcs. No literal UI — mood and brand only. Pure token-coloured
+// inline SVG (fill-accent / stroke-accent / stroke-line-strong / fill-line-strong)
+// so it flips cleanly light↔dark and scales to mobile via the viewBox. The
+// dissolving pixels breathe on a GPU-cheap, reduced-motion-safe opacity loop
+// (.pixly-pixel in app/globals.css). Decorative → aria-hidden.
+type HeroPixel = {
+  x: number;
+  y: number;
+  s: number;
+  o: number;
+  outline: boolean;
+  phase: number;
+  core: boolean;
+};
+
+const HERO_CX = 150;
+const HERO_CY = 120;
+const HERO_R = 82;
+
+// Deterministic (no randomness) pixel field: the right half of the disc, solid
+// at the seam and dissolving radially outward into smaller, fainter, sparser
+// squares. Size + opacity taper with distance; the outer bands thin to a
+// checker, then a sparse trail.
+const HERO_PIXELS: HeroPixel[] = (() => {
+  const out: HeroPixel[] = [];
+  const pitch = 20;
+  for (let c = 0; c < 12; c++) {
+    for (let r = 0; r < 9; r++) {
+      const x = HERO_CX + c * pitch; // seam column at the centre, marching right
+      const y = 40 + r * pitch;
+      const dr = Math.hypot(x - HERO_CX, y - HERO_CY) / HERO_R; // 0 → 1 → beyond
+      let keep = false;
+      if (dr <= 1) keep = true; // the pixelated disc
+      else if (dr <= 1.2) keep = (c + r) % 2 === 0; // checkered fray
+      else if (dr <= 1.42) keep = (c + r) % 3 === 0; // sparse trailing
+      if (!keep) continue;
+      out.push({
+        x,
+        y,
+        s: Math.max(4, 20 - dr * 12),
+        o: Math.min(1, Math.max(0.16, 1.08 - dr * 0.72)),
+        outline: dr > 1.05 && c % 2 === 1,
+        phase: (c + r * 2) % 4,
+        core: dr <= 0.55,
+      });
+    }
+  }
+  return out;
+})();
+
+// A few detached pixels drifting into the right-hand negative space —
+// hand-placed for a deliberate, tapering trail (some solid, some wireframe).
+const HERO_DRIFT: HeroPixel[] = [
+  { x: 250, y: 96, s: 11, o: 0.5, outline: false, phase: 0, core: false },
+  { x: 276, y: 134, s: 9, o: 0.4, outline: true, phase: 1, core: false },
+  { x: 300, y: 108, s: 8, o: 0.32, outline: false, phase: 2, core: false },
+  { x: 302, y: 152, s: 6, o: 0.26, outline: false, phase: 3, core: false },
+  { x: 324, y: 126, s: 6, o: 0.22, outline: true, phase: 0, core: false },
+  { x: 344, y: 114, s: 5, o: 0.16, outline: false, phase: 2, core: false },
+];
+
+const HERO_FIELD = [...HERO_PIXELS, ...HERO_DRIFT];
+
+function HeroPixelRect({ px }: { px: HeroPixel }) {
+  const half = px.s / 2;
+  return (
+    <rect
+      x={px.x - half}
+      y={px.y - half}
+      width={px.s}
+      height={px.s}
+      rx={Math.min(1.6, px.s * 0.12)}
+      opacity={px.o}
+      strokeWidth={px.outline ? 1.4 : undefined}
+      className={px.outline ? "fill-none stroke-accent" : "fill-accent"}
+    />
+  );
+}
+
 function HeroVisual({ className }: { className?: string }) {
   return (
     <svg
-      viewBox="0 0 360 220"
+      viewBox="0 0 380 240"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"
       className={className}
     >
       <defs>
-        <clipPath id="pixly-hero-photo">
-          <rect x="18" y="54" width="324" height="100" rx="12" />
+        {/* Solid focal mass = the left half of the disc, extended just past the
+            centre so it backs the seam column and the dissolve reads cleanly. */}
+        <clipPath id="pixly-hero-solid">
+          <rect x="0" y="0" width="161" height="240" />
         </clipPath>
       </defs>
 
-      {/* Editor window frame */}
-      <rect
-        x="6"
-        y="8"
-        width="348"
-        height="204"
-        rx="18"
-        strokeWidth="2"
-        className="fill-surface stroke-line"
-      />
-
-      {/* Title bar: window dots (left) + edit toolbar (right) */}
+      {/* Editorial texture — a small neutral pixel cluster balances the top-left. */}
       <g className="fill-line-strong">
-        <circle cx="22" cy="26" r="3" />
-        <circle cx="32" cy="26" r="3" />
-        <circle cx="42" cy="26" r="3" />
+        {[34, 47].flatMap((cx) =>
+          [44, 57, 70].map((cy) => (
+            <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={1.7} />
+          )),
+        )}
       </g>
 
-      {/* Crop tool button (active) */}
-      <rect
-        x="226"
-        y="15"
-        width="30"
-        height="22"
-        rx="8"
-        strokeWidth="1.5"
-        className="fill-accent-soft stroke-accent"
-      />
-      <g
-        strokeWidth="1.6"
+      {/* Concentric arcs hugging the dissolving side (echo + depth). */}
+      <path
+        d="M263.4 24.9 A148 148 0 0 1 263.4 215.1"
+        strokeWidth="2"
         strokeLinecap="round"
-        strokeLinejoin="round"
-        className="stroke-accent"
-      >
-        <path d="M235 21 V31 H245" />
-        <path d="M237 23 H247 V33" />
-      </g>
-
-      {/* Rotate tool button */}
-      <rect
-        x="266"
-        y="15"
-        width="30"
-        height="22"
-        rx="8"
-        strokeWidth="1.5"
-        className="fill-surface-2 stroke-line"
+        className="stroke-line-strong"
       />
-      <g
-        strokeWidth="1.6"
+      <path
+        d="M226.3 22.3 A124 124 0 0 1 226.3 217.7"
+        strokeWidth="2.5"
         strokeLinecap="round"
-        strokeLinejoin="round"
-        className="stroke-muted"
-      >
-        <path d="M277 29 A 5.5 5.5 0 1 1 281 20.5" />
-        <path d="M278.2 18.4 L281.6 20.4 L280 23.9" />
-      </g>
-
-      {/* Adjust (sliders) tool button */}
-      <rect
-        x="306"
-        y="15"
-        width="30"
-        height="22"
-        rx="8"
-        strokeWidth="1.5"
-        className="fill-surface-2 stroke-line"
-      />
-      <g strokeWidth="1.6" strokeLinecap="round" className="stroke-muted">
-        <path d="M315 22.5 H327" />
-        <path d="M315 29.5 H327" />
-      </g>
-      <g strokeWidth="1.4" className="fill-surface-2 stroke-muted">
-        <circle cx="319" cy="22.5" r="1.9" />
-        <circle cx="323" cy="29.5" r="1.9" />
-      </g>
-
-      {/* Title-bar divider */}
-      <path d="M10 44 H350" strokeWidth="1.5" className="stroke-line" />
-
-      {/* Photo canvas */}
-      <g clipPath="url(#pixly-hero-photo)">
-        <rect x="18" y="54" width="324" height="100" className="fill-accent-soft" />
-        {/* Sun */}
-        <circle cx="286" cy="82" r="13" className="fill-accent" />
-        {/* Layered hills */}
-        <path
-          d="M18 154 L74 108 L128 136 L176 100 L232 130 L288 100 L342 134 L342 154 Z"
-          className="fill-surface"
-        />
-        <path
-          d="M18 154 L64 132 L118 148 L168 128 L226 150 L286 126 L342 146 L342 154 Z"
-          className="fill-surface-2"
-        />
-        {/* Dim the area outside the crop selection (crop-UI letterboxing) */}
-        <g className="fill-bg" opacity="0.5">
-          <rect x="18" y="54" width="324" height="10" />
-          <rect x="18" y="144" width="324" height="10" />
-          <rect x="18" y="64" width="22" height="80" />
-          <rect x="320" y="64" width="22" height="80" />
-        </g>
-        {/* Rule-of-thirds grid inside the crop selection */}
-        <g strokeWidth="1" opacity="0.35" className="stroke-accent">
-          <path d="M133.3 64 V144" />
-          <path d="M226.7 64 V144" />
-          <path d="M40 90.7 H320" />
-          <path d="M40 117.3 H320" />
-        </g>
-      </g>
-
-      {/* Crop selection border + corner brackets (breathe via pixly-crop-live) */}
-      <rect
-        x="40"
-        y="64"
-        width="280"
-        height="80"
-        strokeWidth="1.5"
+        opacity="0.55"
         className="stroke-accent"
       />
-      <g
-        strokeWidth="3"
-        strokeLinecap="round"
-        className="stroke-accent pixly-crop-live"
-      >
-        <path d="M40 64 H54" />
-        <path d="M40 64 V78" />
-        <path d="M320 64 H306" />
-        <path d="M320 64 V78" />
-        <path d="M40 144 H54" />
-        <path d="M40 144 V130" />
-        <path d="M320 144 H306" />
-        <path d="M320 144 V130" />
-      </g>
-      {/* Crop handles: 4 corners + 4 edge midpoints */}
-      <g className="fill-accent pixly-crop-live">
-        <rect x="37" y="61" width="6" height="6" rx="1.5" />
-        <rect x="317" y="61" width="6" height="6" rx="1.5" />
-        <rect x="37" y="141" width="6" height="6" rx="1.5" />
-        <rect x="317" y="141" width="6" height="6" rx="1.5" />
-        <rect x="177" y="61" width="6" height="6" rx="1.5" />
-        <rect x="177" y="141" width="6" height="6" rx="1.5" />
-        <rect x="37" y="101" width="6" height="6" rx="1.5" />
-        <rect x="317" y="101" width="6" height="6" rx="1.5" />
+
+      {/* Solid disc — left half. */}
+      <circle
+        cx={HERO_CX}
+        cy={HERO_CY}
+        r={HERO_R}
+        clipPath="url(#pixly-hero-solid)"
+        className="fill-accent"
+      />
+
+      {/* Solid core of the pixelated right half (steady, no breathing). */}
+      <g>
+        {HERO_FIELD.filter((p) => p.core).map((px) => (
+          <HeroPixelRect key={`c-${px.x}-${px.y}`} px={px} />
+        ))}
       </g>
 
-      {/* Convert bar — the source format flows into the chosen output formats */}
-      <rect x="18" y="162" width="324" height="42" rx="13" className="fill-surface-2" />
-
-      {/* Source format chip */}
-      <rect
-        x="60"
-        y="172"
-        width="48"
-        height="22"
-        rx="7"
-        strokeWidth="1.5"
-        className="fill-surface stroke-line"
-      />
-      <text
-        x="84"
-        y="186.5"
-        textAnchor="middle"
-        fontSize="11"
-        fontWeight="600"
-        letterSpacing="0.4"
-        className="fill-muted font-mono"
-      >
-        HEIC
-      </text>
-
-      {/* Convert arrow (drifts via pixly-flow) */}
-      <g
-        strokeWidth="3"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className="stroke-accent pixly-flow"
-      >
-        <path d="M116 183 H136" />
-        <path d="M130 178 L136 183 L130 188" />
-      </g>
-
-      {/* Selected output chip (settles via pixly-arrive) */}
-      <rect
-        x="144"
-        y="172"
-        width="44"
-        height="22"
-        rx="7"
-        strokeWidth="1.5"
-        className="fill-accent-soft stroke-accent pixly-arrive"
-      />
-      <text
-        x="166"
-        y="186.5"
-        textAnchor="middle"
-        fontSize="11"
-        fontWeight="700"
-        letterSpacing="0.4"
-        className="fill-accent font-mono"
-      >
-        JPG
-      </text>
-
-      {/* Alternate output chips */}
-      <rect
-        x="196"
-        y="172"
-        width="44"
-        height="22"
-        rx="7"
-        strokeWidth="1.5"
-        className="fill-surface stroke-line"
-      />
-      <text
-        x="218"
-        y="186.5"
-        textAnchor="middle"
-        fontSize="11"
-        fontWeight="600"
-        letterSpacing="0.4"
-        className="fill-muted font-mono"
-      >
-        PNG
-      </text>
-      <rect
-        x="248"
-        y="172"
-        width="50"
-        height="22"
-        rx="7"
-        strokeWidth="1.5"
-        className="fill-surface stroke-line"
-      />
-      <text
-        x="273"
-        y="186.5"
-        textAnchor="middle"
-        fontSize="11"
-        fontWeight="600"
-        letterSpacing="0.4"
-        className="fill-muted font-mono"
-      >
-        WebP
-      </text>
+      {/* Dissolving pixels — grouped by phase; each group breathes on a slightly
+          different, offset loop so the edge shimmers rather than pulsing in
+          sync. Group opacity multiplies with each pixel's own taper, so the
+          static (reduced-motion) state keeps the intended fade. */}
+      {[0, 1, 2, 3].map((phase) => (
+        <g
+          key={phase}
+          className="pixly-pixel"
+          style={
+            {
+              "--px-delay": `${phase * 0.6}s`,
+              "--px-dur": `${4.2 + phase * 0.5}s`,
+            } as CSSProperties
+          }
+        >
+          {HERO_FIELD.filter((p) => !p.core && p.phase === phase).map((px) => (
+            <HeroPixelRect key={`p-${px.x}-${px.y}`} px={px} />
+          ))}
+        </g>
+      ))}
     </svg>
   );
 }

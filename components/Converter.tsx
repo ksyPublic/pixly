@@ -2,17 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Format } from "@/lib/conversions";
-import {
-  FORMATS,
-  INPUT_ACCEPT,
-  OUTPUT_FORMATS,
-  detectFormat,
-} from "@/lib/conversions";
+import { FORMATS, detectFormat } from "@/lib/conversions";
 import { convertImage, formatBytes, outputFilename } from "@/lib/convert";
 import { compressToTargetSize, supportsTargetSize } from "@/lib/compress";
 import { dedupeName, makeZip } from "@/lib/zip";
 import { useI18n } from "@/lib/i18n";
 
+// Every file carries its OWN encode settings, so each row is tuned independently
+// (quality slider vs. target-size — and both are only offered when the target
+// format supports them).
 interface Item {
   id: string;
   file: File;
@@ -22,55 +20,41 @@ interface Item {
   outName?: string;
   outSize?: number;
   error?: string;
+  /** Per-file encode mode. `size` is only reachable for jpg/webp targets. */
+  mode: "quality" | "size";
+  /** 0..1 encode quality (used by lossy targets). */
+  quality: number;
+  /** Target size in KB (used in `size` mode). */
+  targetKB: number;
 }
 
 type Settings =
   | { mode: "quality"; quality: number }
   | { mode: "size"; targetBytes: number };
 
-export default function Converter({
-  from,
-  to,
-  universal = false,
-}: {
-  from: Format;
-  to: Format;
-  /**
-   * Universal mode = the homepage "drop anything → pick any output" entry point:
-   * accepts every input format and shows the output-format picker. When false
-   * (the default, used by every /from-to-to landing page) the tool is FOCUSED —
-   * it accepts only `from` and always outputs `to`, so the tool matches its title.
-   */
-  universal?: boolean;
-}) {
-  const [target, setTarget] = useState<Format>(to);
+const DEFAULT_QUALITY = 0.92;
+const DEFAULT_TARGET_KB = 300;
+
+export default function Converter({ from, to }: { from: Format; to: Format }) {
   const [items, setItems] = useState<Item[]>([]);
-  const [quality, setQuality] = useState(0.92);
-  const [mode, setMode] = useState<"quality" | "size">("quality");
-  const [targetKB, setTargetKB] = useState(300);
   const [zipping, setZipping] = useState(false);
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const lossy = FORMATS[target].lossy;
-  const canSize = supportsTargetSize(target);
-  const effMode: "quality" | "size" = canSize ? mode : "quality";
   const { t } = useI18n();
 
-  // A file is convertible on this page when it decoded to a known format AND —
-  // in focused mode — that format is exactly the page's source (`from`). Written
-  // as a type guard so `it.sourceFmt` narrows to `Format` at the call sites.
-  const isConvertible = useCallback(
-    (fmt: Format | null): fmt is Format =>
-      fmt != null && (universal || fmt === from),
-    [universal, from],
-  );
+  // The output is fixed to `to`. These page-level flags decide which per-row
+  // control (if any) each file gets: size-targeting is only meaningful for
+  // jpg/webp, a quality slider only for lossy targets, and nothing at all for
+  // lossless ones (png/gif/…), where quality has no effect.
+  const canSize = supportsTargetSize(to);
+  const lossy = FORMATS[to].lossy;
 
-  const buildSettings = useCallback(
-    (): Settings =>
-      effMode === "size"
-        ? { mode: "size", targetBytes: Math.max(1, targetKB) * 1024 }
-        : { mode: "quality", quality },
-    [effMode, targetKB, quality],
+  // A file is convertible on this focused page only when it decoded to exactly
+  // this page's source format. Written as a type guard so `it.sourceFmt`
+  // narrows to `Format` at the call sites.
+  const isConvertible = useCallback(
+    (fmt: Format | null): fmt is Format => fmt === from,
+    [from],
   );
 
   // Revoke object URLs on unmount to avoid leaking blob memory.
@@ -89,12 +73,12 @@ export default function Converter({
   const genRef = useRef(new Map<string, number>());
 
   const runConvert = useCallback(
-    async (id: string, file: File, tgt: Format, settings: Settings, gen: number) => {
+    async (id: string, file: File, settings: Settings, gen: number) => {
       try {
         const blob =
-          settings.mode === "size" && supportsTargetSize(tgt)
-            ? (await compressToTargetSize(file, tgt, settings.targetBytes)).blob
-            : await convertImage(file, tgt, {
+          settings.mode === "size" && supportsTargetSize(to)
+            ? (await compressToTargetSize(file, to, settings.targetBytes)).blob
+            : await convertImage(file, to, {
                 quality: settings.mode === "quality" ? settings.quality : undefined,
               });
         if (genRef.current.get(id) !== gen) return; // superseded — drop it
@@ -106,7 +90,7 @@ export default function Converter({
                   ...it,
                   status: "done",
                   outUrl,
-                  outName: outputFilename(file.name, tgt),
+                  outName: outputFilename(file.name, to),
                   outSize: blob.size,
                 }
               : it,
@@ -127,14 +111,23 @@ export default function Converter({
         );
       }
     },
-    [],
+    [to],
+  );
+
+  // Translate a row's mode/quality/targetKB into the engine's Settings. Size
+  // mode is clamped away for targets that can't do it, falling back to quality.
+  const settingsFor = useCallback(
+    (mode: "quality" | "size", quality: number, targetKB: number): Settings =>
+      canSize && mode === "size"
+        ? { mode: "size", targetBytes: Math.max(1, targetKB) * 1024 }
+        : { mode: "quality", quality },
+    [canSize],
   );
 
   const addFiles = useCallback(
     (fileList: FileList | File[]) => {
       const files = Array.from(fileList);
       if (files.length === 0) return;
-      const settings = buildSettings();
       const newItems: Item[] = files.map((file) => {
         const sourceFmt = detectFormat(file);
         const ok = isConvertible(sourceFmt);
@@ -143,91 +136,69 @@ export default function Converter({
           file,
           sourceFmt,
           status: ok ? "converting" : "error",
-          // Focused pages reject files that aren't this page's source format;
-          // universal mode only rejects genuinely undecodable files.
+          // Focused pages reject files that aren't this page's source format.
           error: ok ? undefined : t("conv.unsupported"),
+          mode: "quality" as const,
+          quality: DEFAULT_QUALITY,
+          targetKB: DEFAULT_TARGET_KB,
         };
       });
       setItems((prev) => [...prev, ...newItems]);
       newItems.forEach((it) => {
         if (!isConvertible(it.sourceFmt)) return;
         genRef.current.set(it.id, 1);
-        runConvert(it.id, it.file, target, settings, 1);
+        runConvert(it.id, it.file, settingsFor(it.mode, it.quality, it.targetKB), 1);
       });
     },
-    [target, buildSettings, runConvert, t, isConvertible],
+    [runConvert, settingsFor, t, isConvertible],
   );
 
-  // Re-encode everything when the target format, quality, or mode changes.
-  // Side effects (URL revoke, kicking off conversions) run OUTSIDE the state
-  // updater so React StrictMode's double-invoke can't leak URLs or double-fire.
-  const reconvertAll = useCallback(
-    (tgt: Format, settings: Settings) => {
-      const current = itemsRef.current;
-      current.forEach((it) => it.outUrl && URL.revokeObjectURL(it.outUrl));
-      const bumped = new Map<string, number>();
-      current.forEach((it) => {
-        if (!isConvertible(it.sourceFmt)) return;
-        const g = (genRef.current.get(it.id) ?? 0) + 1;
-        genRef.current.set(it.id, g);
-        bumped.set(it.id, g);
-      });
+  // Live-edit one numeric field of one row WITHOUT reconverting — e.g. dragging
+  // a slider updates the visible % instantly; the re-encode fires on release.
+  const setItemNumber = useCallback(
+    (id: string, key: "quality" | "targetKB", value: number) => {
+      setItems((prev) =>
+        prev.map((it) => (it.id === id ? { ...it, [key]: value } : it)),
+      );
+    },
+    [],
+  );
+
+  // Re-encode a SINGLE row with its own (optionally patched) settings. Bumps the
+  // row's gen, revokes its now-stale blob, and marks it converting. Side effects
+  // run OUTSIDE the state updater so StrictMode's double-invoke can't leak URLs
+  // or double-fire the conversion.
+  const reconvertItem = useCallback(
+    (id: string, patch?: Partial<Pick<Item, "mode" | "quality" | "targetKB">>) => {
+      const cur = itemsRef.current.find((x) => x.id === id);
+      if (!cur || !isConvertible(cur.sourceFmt)) return;
+      const mode = patch?.mode ?? cur.mode;
+      const quality = patch?.quality ?? cur.quality;
+      const targetKB = patch?.targetKB ?? cur.targetKB;
+      if (cur.outUrl) URL.revokeObjectURL(cur.outUrl);
+      const g = (genRef.current.get(id) ?? 0) + 1;
+      genRef.current.set(id, g);
       setItems((prev) =>
         prev.map((it) =>
-          isConvertible(it.sourceFmt)
+          it.id === id
             ? {
                 ...it,
+                mode,
+                quality,
+                targetKB,
                 status: "converting" as const,
                 outUrl: undefined,
+                outName: undefined,
                 outSize: undefined,
                 error: undefined,
               }
             : it,
         ),
       );
-      current.forEach(
-        (it) =>
-          isConvertible(it.sourceFmt) &&
-          runConvert(it.id, it.file, tgt, settings, bumped.get(it.id) as number),
-      );
+      runConvert(id, cur.file, settingsFor(mode, quality, targetKB), g);
     },
-    [runConvert, isConvertible],
+    [isConvertible, runConvert, settingsFor],
   );
-
-  const hasItems = items.length > 0;
-
-  function changeTarget(next: Format) {
-    setTarget(next);
-    if (hasItems) {
-      const nextEff = supportsTargetSize(next) ? mode : "quality";
-      const settings: Settings =
-        nextEff === "size"
-          ? { mode: "size", targetBytes: Math.max(1, targetKB) * 1024 }
-          : { mode: "quality", quality };
-      reconvertAll(next, settings);
-    }
-  }
-
-  function switchMode(next: "quality" | "size") {
-    if (next === mode) return;
-    setMode(next);
-    if (hasItems) {
-      const settings: Settings =
-        next === "size"
-          ? { mode: "size", targetBytes: Math.max(1, targetKB) * 1024 }
-          : { mode: "quality", quality };
-      reconvertAll(target, settings);
-    }
-  }
-
-  function applyTargetSize() {
-    if (hasItems && effMode === "size") {
-      reconvertAll(target, {
-        mode: "size",
-        targetBytes: Math.max(1, targetKB) * 1024,
-      });
-    }
-  }
 
   function clearAll() {
     items.forEach((it) => it.outUrl && URL.revokeObjectURL(it.outUrl));
@@ -264,8 +235,8 @@ export default function Converter({
       a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch {
-      // A blob URL may have been revoked mid-zip (e.g. the user reconverted
-      // while zipping). Swallow it — the per-item downloads still work.
+      // A blob URL may have been revoked mid-zip (e.g. the user reconverted a
+      // row while zipping). Swallow it — the per-item downloads still work.
     } finally {
       setZipping(false);
     }
@@ -273,7 +244,7 @@ export default function Converter({
 
   return (
     <div className="w-full">
-      {/* Dropzone */}
+      {/* Dropzone — accepts only this page's source format. */}
       <div
         role="button"
         tabIndex={0}
@@ -300,7 +271,7 @@ export default function Converter({
         <input
           ref={inputRef}
           type="file"
-          accept={universal ? INPUT_ACCEPT : FORMATS[from].accept}
+          accept={FORMATS[from].accept}
           multiple
           hidden
           onChange={(e) => {
@@ -329,125 +300,22 @@ export default function Converter({
         <p className="mt-1 text-sm text-muted">{t("conv.dropSub")}</p>
       </div>
 
-      {/* Controls: target format + quality / target size */}
-      <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-3">
-        {universal ? (
-          <div className="flex items-center gap-2">
-            <label htmlFor="target" className="text-sm text-muted">
-              {t("conv.to")}
-            </label>
-            <select
-              id="target"
-              value={target}
-              onChange={(e) => changeTarget(e.target.value as Format)}
-              className="rounded-lg border border-line-strong bg-surface px-3 py-1.5 text-sm font-medium text-ink focus:border-accent focus:outline-none"
-            >
-              {OUTPUT_FORMATS.map((f) => (
-                <option key={f} value={f}>
-                  {FORMATS[f].label}
-                </option>
-              ))}
-            </select>
-          </div>
-        ) : (
-          // Focused mode: the output is fixed to `to`, so instead of a picker we
-          // show a static, token-styled label of the pair (e.g. "PNG → JPG").
-          <div
-            className="inline-flex items-center gap-2 rounded-lg border border-line-strong bg-surface px-3 py-1.5 text-sm font-semibold text-ink"
-            aria-label={`${FORMATS[from].label} → ${FORMATS[to].label}`}
-          >
-            <span>{FORMATS[from].label}</span>
-            <span aria-hidden className="text-accent">
-              →
-            </span>
-            <span>{FORMATS[to].label}</span>
-          </div>
-        )}
-
-        {/* Quality ↔ Target size toggle (only where size targeting is possible) */}
-        {canSize && (
-          <div className="inline-flex rounded-lg border border-line-strong p-0.5">
-            <button
-              type="button"
-              onClick={() => switchMode("quality")}
-              aria-pressed={effMode === "quality"}
-              className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
-                effMode === "quality"
-                  ? "bg-accent text-white"
-                  : "text-muted hover:text-ink"
-              }`}
-            >
-              {t("conv.modeQuality")}
-            </button>
-            <button
-              type="button"
-              onClick={() => switchMode("size")}
-              aria-pressed={effMode === "size"}
-              className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
-                effMode === "size"
-                  ? "bg-accent text-white"
-                  : "text-muted hover:text-ink"
-              }`}
-            >
-              {t("conv.modeSize")}
-            </button>
-          </div>
-        )}
-
-        {effMode === "quality" && lossy && (
-          <div className="flex flex-1 items-center gap-3">
-            <label htmlFor="quality" className="text-sm text-muted">
-              {t("conv.quality")}
-            </label>
-            <input
-              id="quality"
-              type="range"
-              min={0.4}
-              max={1}
-              step={0.01}
-              value={quality}
-              onChange={(e) => setQuality(Number(e.target.value))}
-              onMouseUp={() =>
-                hasItems && reconvertAll(target, { mode: "quality", quality })
-              }
-              onTouchEnd={() =>
-                hasItems && reconvertAll(target, { mode: "quality", quality })
-              }
-              className="h-1 flex-1 cursor-pointer accent-[var(--accent)]"
-            />
-            <span className="w-10 text-right text-sm tabular-nums text-muted">
-              {Math.round(quality * 100)}
-            </span>
-          </div>
-        )}
-
-        {effMode === "size" && (
-          <div className="flex items-center gap-2">
-            <label htmlFor="targetkb" className="text-sm text-muted">
-              {t("conv.targetSize")}
-            </label>
-            <input
-              id="targetkb"
-              type="number"
-              min={5}
-              step={10}
-              value={targetKB}
-              onChange={(e) => setTargetKB(Number(e.target.value) || 0)}
-              onBlur={applyTargetSize}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  applyTargetSize();
-                }
-              }}
-              className="w-20 rounded-lg border border-line-strong bg-surface px-3 py-1.5 text-sm font-medium tabular-nums text-ink focus:border-accent focus:outline-none"
-            />
-            <span className="text-sm text-muted">KB</span>
-          </div>
-        )}
+      {/* The output is fixed on a focused page, so we show a static pair label
+          (e.g. "PNG → JPG") instead of an output-format picker. */}
+      <div className="mt-5">
+        <div
+          className="inline-flex items-center gap-2 rounded-lg border border-line-strong bg-surface px-3 py-1.5 text-sm font-semibold text-ink"
+          aria-label={`${FORMATS[from].label} → ${FORMATS[to].label}`}
+        >
+          <span>{FORMATS[from].label}</span>
+          <span aria-hidden className="text-accent">
+            →
+          </span>
+          <span>{FORMATS[to].label}</span>
+        </div>
       </div>
 
-      {/* Results */}
+      {/* Results — each row carries its own compact quality/size control. */}
       {items.length > 0 && (
         <div className="mt-6">
           <div className="mb-3 flex items-center justify-between gap-3">
@@ -476,57 +344,162 @@ export default function Converter({
           </div>
 
           <ul className="flex flex-col gap-2">
-            {items.map((it) => (
-              <li
-                key={it.id}
-                className="flex items-center gap-3 rounded-xl border border-line bg-surface px-4 py-3"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">
-                    {it.file.name}
-                    {isConvertible(it.sourceFmt) && (
-                      <span className="ml-2 text-xs font-normal text-muted">
-                        {FORMATS[it.sourceFmt].label} → {FORMATS[target].label}
-                      </span>
-                    )}
-                  </p>
-                  <p className="text-xs text-muted">
-                    {formatBytes(it.file.size)}
-                    {it.status === "done" && it.outSize != null && (
-                      <>
-                        {" → "}
-                        {formatBytes(it.outSize)}
-                        {it.outSize < it.file.size && (
-                          <span className="ml-1 text-good">
-                            −{Math.round((1 - it.outSize / it.file.size) * 100)}%
-                          </span>
-                        )}
-                      </>
-                    )}
-                  </p>
-                </div>
+            {items.map((it) => {
+              const effMode: "quality" | "size" = canSize ? it.mode : "quality";
+              const showControl = isConvertible(it.sourceFmt) && (canSize || lossy);
+              return (
+                <li
+                  key={it.id}
+                  className="flex flex-col gap-3 rounded-xl border border-line bg-surface px-4 py-3 sm:flex-row sm:items-center sm:gap-4"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">
+                      {it.file.name}
+                      {isConvertible(it.sourceFmt) && (
+                        <span className="ml-2 text-xs font-normal text-muted">
+                          {FORMATS[it.sourceFmt].label} → {FORMATS[to].label}
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-xs text-muted">
+                      {formatBytes(it.file.size)}
+                      {it.status === "done" && it.outSize != null && (
+                        <>
+                          {" → "}
+                          {formatBytes(it.outSize)}
+                          {it.outSize < it.file.size && (
+                            <span className="ml-1 text-good">
+                              −{Math.round((1 - it.outSize / it.file.size) * 100)}%
+                            </span>
+                          )}
+                        </>
+                      )}
+                    </p>
+                  </div>
 
-                {it.status === "converting" && (
-                  <span className="text-xs text-muted">
-                    {t("conv.converting")}
-                  </span>
-                )}
-                {it.status === "error" && (
-                  <span className="max-w-[45%] truncate text-xs text-red-500">
-                    {it.error}
-                  </span>
-                )}
-                {it.status === "done" && it.outUrl && (
-                  <a
-                    href={it.outUrl}
-                    download={it.outName}
-                    className="shrink-0 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white transition-opacity hover:opacity-90"
-                  >
-                    {t("conv.download")}
-                  </a>
-                )}
-              </li>
-            ))}
+                  <div className="flex flex-wrap items-center gap-3 sm:flex-nowrap sm:justify-end">
+                    {/* Per-row quality / target-size control (lossy targets only). */}
+                    {showControl && (
+                      <div className="flex items-center gap-2">
+                        {canSize && (
+                          <div className="inline-flex rounded-md border border-line-strong p-0.5">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                effMode !== "quality" &&
+                                reconvertItem(it.id, { mode: "quality" })
+                              }
+                              aria-pressed={effMode === "quality"}
+                              className={`rounded px-2 py-0.5 text-xs font-medium transition-colors ${
+                                effMode === "quality"
+                                  ? "bg-accent text-white"
+                                  : "text-muted hover:text-ink"
+                              }`}
+                            >
+                              {t("conv.modeQuality")}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                effMode !== "size" &&
+                                reconvertItem(it.id, { mode: "size" })
+                              }
+                              aria-pressed={effMode === "size"}
+                              className={`rounded px-2 py-0.5 text-xs font-medium transition-colors ${
+                                effMode === "size"
+                                  ? "bg-accent text-white"
+                                  : "text-muted hover:text-ink"
+                              }`}
+                            >
+                              {t("conv.sizeShort")}
+                            </button>
+                          </div>
+                        )}
+
+                        {effMode === "quality" ? (
+                          <label
+                            className="flex items-center gap-1.5"
+                            title={t("conv.quality")}
+                          >
+                            <span className="sr-only">{t("conv.quality")}</span>
+                            <input
+                              type="range"
+                              min={0.4}
+                              max={1}
+                              step={0.01}
+                              value={it.quality}
+                              onChange={(e) =>
+                                setItemNumber(it.id, "quality", Number(e.target.value))
+                              }
+                              onMouseUp={() => reconvertItem(it.id)}
+                              onTouchEnd={() => reconvertItem(it.id)}
+                              aria-label={t("conv.quality")}
+                              className="h-1 w-20 cursor-pointer accent-[var(--accent)]"
+                            />
+                            <span className="w-7 text-right text-xs tabular-nums text-muted">
+                              {Math.round(it.quality * 100)}
+                            </span>
+                          </label>
+                        ) : (
+                          <label
+                            className="flex items-center gap-1"
+                            title={t("conv.targetSize")}
+                          >
+                            <span className="sr-only">{t("conv.targetSize")}</span>
+                            <input
+                              type="number"
+                              min={5}
+                              step={10}
+                              value={it.targetKB}
+                              onChange={(e) =>
+                                setItemNumber(
+                                  it.id,
+                                  "targetKB",
+                                  Number(e.target.value) || 0,
+                                )
+                              }
+                              onBlur={() => reconvertItem(it.id)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  e.currentTarget.blur();
+                                }
+                              }}
+                              aria-label={t("conv.targetSize")}
+                              className="w-16 rounded-md border border-line-strong bg-surface px-2 py-1 text-xs font-medium tabular-nums text-ink focus:border-accent focus:outline-none"
+                            />
+                            <span className="text-xs text-muted">KB</span>
+                          </label>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Status / download */}
+                    <div className="flex shrink-0 items-center">
+                      {it.status === "converting" && (
+                        <span className="text-xs text-muted">
+                          {t("conv.converting")}
+                        </span>
+                      )}
+                      {it.status === "error" && (
+                        <span className="max-w-[12rem] truncate text-xs text-red-500">
+                          {it.error}
+                        </span>
+                      )}
+                      {it.status === "done" && it.outUrl && (
+                        <a
+                          href={it.outUrl}
+                          download={it.outName}
+                          className="shrink-0 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white transition-opacity hover:opacity-90"
+                        >
+                          {t("conv.download")}
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}

@@ -216,12 +216,32 @@ body {
   animation: pixly-arrive 4.2s ease-in-out 1.4s infinite;
 }
 
+/* Hero brand artwork — the dissolving pixels gently breathe. Group opacity
+   only (multiplies with each pixel's own static taper), so it's GPU-cheap and
+   the reduced-motion / no-animation state keeps the intended fade. Per-group
+   `--px-delay` / `--px-dur` (set inline) desync the phases into a soft
+   shimmer. Starts after the hero visual has risen into place. */
+@keyframes pixly-pixel {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.62;
+  }
+}
+.pixly-pixel {
+  animation: pixly-pixel var(--px-dur, 4.4s) ease-in-out infinite;
+  animation-delay: calc(1.1s + var(--px-delay, 0s));
+}
+
 @media (prefers-reduced-motion: reduce) {
   .rise,
   .reveal.is-visible,
   .pixly-crop-live,
   .pixly-flow,
-  .pixly-arrive {
+  .pixly-arrive,
+  .pixly-pixel {
     animation: none;
   }
   /* Reveal targets stay fully visible even if the observer never runs. */
