@@ -5,15 +5,16 @@ import { PDF_TOOLS } from "@/lib/pdfTools";
 
 const tool = PDF_TOOLS["pdf-to-png"];
 
+// English mirror of /pdf-to-png.
 export const metadata: Metadata = {
-  title: tool.metaTitle,
-  description: tool.metaDescription,
+  title: tool.metaTitleEn,
+  description: tool.metaDescriptionEn,
   alternates: {
-    canonical: "/pdf-to-png/",
+    canonical: "/en/pdf-to-png/",
     languages: altLanguages("/pdf-to-png/"),
   },
 };
 
 export default function Page() {
-  return <PdfToolLanding slug="pdf-to-png" />;
+  return <PdfToolLanding slug="pdf-to-png" locale="en" />;
 }

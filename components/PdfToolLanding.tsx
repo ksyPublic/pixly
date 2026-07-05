@@ -5,23 +5,35 @@ import {
   howToSchema,
   webApplicationSchema,
 } from "@/lib/jsonld";
+import type { Locale } from "@/lib/i18n";
+import { enPath } from "@/lib/seo";
 import { SITE_URL } from "@/lib/site";
 import { PDF_TOOLS } from "@/lib/pdfTools";
 
-// Server shell for every PDF-tool landing page: emits the Korean JSON-LD (built
-// from the SAME copy the client renders by default, so structured data mirrors
-// the visible, default-Korean page) and hands the visible body to the client
-// PdfToolContent, which localizes it via the active locale.
-export default function PdfToolLanding({ slug }: { slug: string }) {
+// Server shell for every PDF-tool landing page. It emits the JSON-LD (built from
+// the SAME copy the client renders, so structured data mirrors the visible
+// page) and hands the visible body to the client PdfToolContent, which localizes
+// itself from the route. `locale` selects the language for BOTH the schema and
+// the URLs: the default (ko) shell lives at /<slug>/, the English one at
+// /en/<slug>/.
+export default function PdfToolLanding({
+  slug,
+  locale = "ko",
+}: {
+  slug: string;
+  locale?: Locale;
+}) {
   const tool = PDF_TOOLS[slug];
-  const copy = tool.copy.ko;
-  const url = `${SITE_URL}/${slug}/`;
+  const copy = tool.copy[locale];
+  const path = locale === "en" ? enPath(`/${slug}/`) : `/${slug}/`;
+  const url = `${SITE_URL}${path}`;
+  const homeUrl = `${SITE_URL}${locale === "en" ? "/en/" : "/"}`;
 
   const jsonLd = [
     webApplicationSchema(copy.appName, url),
     howToSchema(copy.howToTitle, copy.howToSteps),
     breadcrumbSchema([
-      { name: "홈", url: `${SITE_URL}/` },
+      { name: locale === "en" ? "Home" : "홈", url: homeUrl },
       { name: copy.h1, url },
     ]),
   ];

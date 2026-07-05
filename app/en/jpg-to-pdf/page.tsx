@@ -3,17 +3,18 @@ import PdfToolLanding from "@/components/PdfToolLanding";
 import { altLanguages } from "@/lib/seo";
 import { PDF_TOOLS } from "@/lib/pdfTools";
 
-const tool = PDF_TOOLS["pdf-to-png"];
+const tool = PDF_TOOLS["jpg-to-pdf"];
 
+// English mirror of /jpg-to-pdf.
 export const metadata: Metadata = {
-  title: tool.metaTitle,
-  description: tool.metaDescription,
+  title: tool.metaTitleEn,
+  description: tool.metaDescriptionEn,
   alternates: {
-    canonical: "/pdf-to-png/",
-    languages: altLanguages("/pdf-to-png/"),
+    canonical: "/en/jpg-to-pdf/",
+    languages: altLanguages("/jpg-to-pdf/"),
   },
 };
 
 export default function Page() {
-  return <PdfToolLanding slug="pdf-to-png" />;
+  return <PdfToolLanding slug="jpg-to-pdf" locale="en" />;
 }

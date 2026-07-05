@@ -181,6 +181,64 @@ export const OUTPUT_FORMATS: Format[] = (Object.keys(FORMATS) as Format[]).filte
   (f) => FORMATS[f].output,
 );
 
+// ---------------------------------------------------------------------------
+// Output options shared by the Canvas and ImageMagick engines.
+// ---------------------------------------------------------------------------
+
+/** How to resize the output image. `none` keeps the source dimensions. */
+export interface ResizeOption {
+  mode: "none" | "width" | "height" | "dimensions" | "percent";
+  /** Target width in px (used by `width` and `dimensions`). */
+  width?: number;
+  /** Target height in px (used by `height` and `dimensions`). */
+  height?: number;
+  /** Scale percentage (used by `percent`), e.g. 50 = half size. */
+  percent?: number;
+}
+
+/** Resolve a source WxH plus a ResizeOption into concrete output pixels.
+ *  width/height/percent preserve the aspect ratio; `dimensions` forces an exact
+ *  size (may distort). Invalid or half-typed inputs fall back to the source
+ *  size, so an empty field never produces a 0px canvas. */
+export function computeTargetSize(
+  w: number,
+  h: number,
+  resize?: ResizeOption,
+): { width: number; height: number } {
+  if (!resize || resize.mode === "none" || w <= 0 || h <= 0) {
+    return { width: w, height: h };
+  }
+  const px = (n: number) => Math.max(1, Math.round(n));
+  const { width, height, percent } = resize;
+  switch (resize.mode) {
+    case "width":
+      return width && width > 0
+        ? { width: px(width), height: px((h * width) / w) }
+        : { width: w, height: h };
+    case "height":
+      return height && height > 0
+        ? { width: px((w * height) / h), height: px(height) }
+        : { width: w, height: h };
+    case "dimensions":
+      return width && height && width > 0 && height > 0
+        ? { width: px(width), height: px(height) }
+        : { width: w, height: h };
+    case "percent":
+      return percent && percent > 0
+        ? { width: px((w * percent) / 100), height: px((h * percent) / 100) }
+        : { width: w, height: h };
+    default:
+      return { width: w, height: h };
+  }
+}
+
+/** Validate a #rgb / #rrggbb hex string; returns it lowercased, or undefined. */
+export function normalizeHexColor(c?: string): string | undefined {
+  if (!c) return undefined;
+  const s = c.trim();
+  return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(s) ? s.toLowerCase() : undefined;
+}
+
 // Combined accept string covering every input format we can decode.
 export const INPUT_ACCEPT = Array.from(
   new Set(

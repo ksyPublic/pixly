@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type ReactNode } from "react";
-import Link from "next/link";
+import Link from "@/components/LocaleLink";
 
 function ChevronDown({ className }: { className?: string }) {
   return (

@@ -5,7 +5,7 @@
 // This is the feature paywalled/queued on server-based converters: here it's
 // free and instant because there's no upload.
 
-import type { Format } from "./conversions";
+import type { Format, ResizeOption } from "./conversions";
 import { detectFormat } from "./conversions";
 import { decodeAnyToBitmap, encodeBitmapToBlob } from "./convert";
 
@@ -25,18 +25,37 @@ export interface CompressResult {
   overTarget: boolean;
 }
 
+/** Output shaping shared with the plain converter — applied on every encode
+ *  pass so the size target is measured on the final (resized/flattened) image. */
+export interface CompressOptions {
+  resize?: ResizeOption;
+  background?: string;
+  autoOrient?: boolean;
+}
+
 /** Encode `file` to `target`, aiming for the largest result ≤ targetBytes. */
 export async function compressToTargetSize(
   file: File,
   target: Format,
   targetBytes: number,
+  opts: CompressOptions = {},
 ): Promise<CompressResult> {
   // Route TIFF/PSD/ICO/TGA through the ImageMagick decode path so size mode
   // works for every input format the converter accepts, not just Canvas ones.
-  const bitmap = await decodeAnyToBitmap(file, detectFormat(file));
+  const bitmap = await decodeAnyToBitmap(
+    file,
+    detectFormat(file),
+    opts.autoOrient ?? true,
+  );
   try {
     // If full quality already fits, no need to degrade anything.
-    const full = await encodeBitmapToBlob(bitmap, target, 1);
+    const full = await encodeBitmapToBlob(
+      bitmap,
+      target,
+      1,
+      opts.resize,
+      opts.background,
+    );
     if (full.size <= targetBytes) {
       return { blob: full, quality: 1, overTarget: false };
     }
@@ -47,7 +66,13 @@ export async function compressToTargetSize(
     let best: CompressResult | null = null;
     for (let i = 0; i < 8; i++) {
       const q = (lo + hi) / 2;
-      const blob = await encodeBitmapToBlob(bitmap, target, q);
+      const blob = await encodeBitmapToBlob(
+        bitmap,
+        target,
+        q,
+        opts.resize,
+        opts.background,
+      );
       if (blob.size <= targetBytes) {
         best = { blob, quality: q, overTarget: false };
         lo = q; // room to raise quality
@@ -59,7 +84,13 @@ export async function compressToTargetSize(
     if (best) return best;
 
     // Even near-minimum quality overshoots — return the smallest we can make.
-    const floor = await encodeBitmapToBlob(bitmap, target, 0.05);
+    const floor = await encodeBitmapToBlob(
+      bitmap,
+      target,
+      0.05,
+      opts.resize,
+      opts.background,
+    );
     return { blob: floor, quality: 0.05, overTarget: true };
   } finally {
     bitmap.close?.();

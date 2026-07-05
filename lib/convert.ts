@@ -2,13 +2,35 @@
 // nothing is ever uploaded. Uses the Canvas API for encoding and heic2any
 // (lazy-loaded WASM) to decode Apple HEIC/HEIF.
 
-import type { Format } from "./conversions";
-import { FORMATS, detectFormat } from "./conversions";
+import type { Format, ResizeOption } from "./conversions";
+import {
+  FORMATS,
+  detectFormat,
+  computeTargetSize,
+  normalizeHexColor,
+} from "./conversions";
 import { convertWithMagick } from "./magick";
 
 export interface ConvertOptions {
   /** 0..1, only used by lossy encoders (JPG/WebP) */
   quality?: number;
+  /** Resize the output. Omitted or `{mode:"none"}` keeps the source size. */
+  resize?: ResizeOption;
+  /** Hex fill for transparent areas when the target has no alpha (e.g.
+   *  PNG→JPG). Defaults to white. Ignored by alpha-capable targets. */
+  background?: string;
+  /** Honor the source's EXIF orientation flag. Defaults to true, so a photo
+   *  shot in portrait on a phone doesn't come out sideways. */
+  autoOrient?: boolean;
+  /** Remove EXIF, GPS location, ICC profiles and comments from the output.
+   *  Defaults to true. Canvas re-encoding always drops metadata anyway; this
+   *  flag additionally drives the ImageMagick engine's strip so magick-encoded
+   *  formats (TIFF/GIF/BMP/…) match the same clean-output behavior. */
+  stripMetadata?: boolean;
+  /** Encode WebP with no quality loss (webp target only). Routed through the
+   *  ImageMagick engine because the browser's Canvas WebP encoder is always
+   *  lossy — there's no lossless flag on canvas.toBlob. */
+  lossless?: boolean;
 }
 
 // What the fast Canvas path can handle. Anything outside these sets is routed
@@ -20,7 +42,10 @@ function isHeic(file: File): boolean {
   return /heic|heif/i.test(file.type) || /\.(heic|heif)$/i.test(file.name);
 }
 
-export async function decodeToBitmap(file: File): Promise<ImageBitmap> {
+export async function decodeToBitmap(
+  file: File,
+  autoOrient = true,
+): Promise<ImageBitmap> {
   let blob: Blob = file;
   if (isHeic(file)) {
     // Browsers (except Safari) can't decode HEIC natively. Lazy-import the
@@ -29,7 +54,11 @@ export async function decodeToBitmap(file: File): Promise<ImageBitmap> {
     const out = await heic2any({ blob: file, toType: "image/png" });
     blob = Array.isArray(out) ? out[0] : out;
   }
-  return createImageBitmap(blob);
+  // "from-image" bakes in the EXIF orientation JPEGs from phones carry;
+  // "none" leaves pixels as authored. (HEIC is already upright post-heic2any.)
+  return createImageBitmap(blob, {
+    imageOrientation: autoOrient ? "from-image" : "none",
+  });
 }
 
 /** Decode ANY supported source to a bitmap. Formats the Canvas can't decode
@@ -39,11 +68,14 @@ export async function decodeToBitmap(file: File): Promise<ImageBitmap> {
 export async function decodeAnyToBitmap(
   file: File,
   source: Format | null,
+  autoOrient = true,
 ): Promise<ImageBitmap> {
   const canvasDecodable =
     isHeic(file) || (source != null && CANVAS_DECODE.has(source));
-  if (canvasDecodable) return decodeToBitmap(file);
-  const png = await convertWithMagick(file, "png", undefined, source);
+  if (canvasDecodable) return decodeToBitmap(file, autoOrient);
+  const png = await convertWithMagick(file, "png", undefined, source, {
+    autoOrient,
+  });
   return createImageBitmap(png);
 }
 
@@ -56,11 +88,19 @@ export async function convertImage(
     throw new Error(`${target.toUpperCase()} is not a supported output format.`);
   }
 
-  // Route to ImageMagick unless both sides fit the fast Canvas path.
+  // Route to ImageMagick unless both sides fit the fast Canvas path. Lossless
+  // WebP also forces the magick path, since canvas.toBlob can't encode it.
   const source = detectFormat(file);
   const canvasCanDecode = isHeic(file) || (source != null && CANVAS_DECODE.has(source));
-  if (!(CANVAS_ENCODE.has(target) && canvasCanDecode)) {
-    return convertWithMagick(file, target, opts.quality, source);
+  const losslessWebp = target === "webp" && !!opts.lossless;
+  if (losslessWebp || !(CANVAS_ENCODE.has(target) && canvasCanDecode)) {
+    return convertWithMagick(file, target, opts.quality, source, {
+      resize: opts.resize,
+      background: opts.background,
+      autoOrient: opts.autoOrient,
+      stripMetadata: opts.stripMetadata,
+      lossless: opts.lossless,
+    });
   }
 
   return convertViaCanvas(file, target, opts);
@@ -71,9 +111,15 @@ async function convertViaCanvas(
   target: Format,
   opts: ConvertOptions,
 ): Promise<Blob> {
-  const bitmap = await decodeToBitmap(file);
+  const bitmap = await decodeToBitmap(file, opts.autoOrient ?? true);
   try {
-    return await encodeBitmapToBlob(bitmap, target, opts.quality);
+    return await encodeBitmapToBlob(
+      bitmap,
+      target,
+      opts.quality,
+      opts.resize,
+      opts.background,
+    );
   } finally {
     bitmap.close?.();
   }
@@ -86,25 +132,29 @@ export async function encodeBitmapToBlob(
   bitmap: ImageBitmap,
   target: Format,
   quality?: number,
+  resize?: ResizeOption,
+  background?: string,
 ): Promise<Blob> {
   const info = FORMATS[target];
   if (!info.encodeMime) {
     throw new Error(`${info.label} cannot be encoded via canvas.`);
   }
+  const { width, height } = computeTargetSize(bitmap.width, bitmap.height, resize);
   const canvas = document.createElement("canvas");
-  canvas.width = bitmap.width;
-  canvas.height = bitmap.height;
+  canvas.width = width;
+  canvas.height = height;
 
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas is not supported in this browser.");
 
-  // JPEG has no alpha channel — flatten transparency onto white so PNGs
-  // with transparency don't come out with black backgrounds.
+  // JPEG has no alpha channel — flatten transparency onto a solid color so
+  // PNGs with transparency don't come out with black backgrounds. The color is
+  // configurable and defaults to white.
   if (info.encodeMime === "image/jpeg") {
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = normalizeHexColor(background) ?? "#ffffff";
+    ctx.fillRect(0, 0, width, height);
   }
-  ctx.drawImage(bitmap, 0, 0);
+  ctx.drawImage(bitmap, 0, 0, width, height);
 
   const q = info.lossy ? (quality ?? 0.92) : undefined;
   const blob = await new Promise<Blob | null>((resolve) =>

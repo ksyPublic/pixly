@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/LocaleLink";
 import ImagesToPdf from "@/components/ImagesToPdf";
 import PdfToImages from "@/components/PdfToImages";
 import { AdSlot } from "@/components/AdSense";

@@ -7,6 +7,7 @@ import {
   howToSchema,
   webApplicationSchema,
 } from "@/lib/jsonld";
+import { altLanguages } from "@/lib/seo";
 import { SITE_URL } from "@/lib/site";
 
 // Korean-first metadata to match the indexed (default-ko) page; English strings
@@ -14,7 +15,10 @@ import { SITE_URL } from "@/lib/site";
 export const metadata: Metadata = {
   title: COMPRESS_META.title,
   description: COMPRESS_META.description,
-  alternates: { canonical: "/compress/" },
+  alternates: {
+    canonical: "/compress/",
+    languages: altLanguages("/compress/"),
+  },
 };
 
 export default function CompressPage() {

@@ -5,9 +5,9 @@ import {
   createElement,
   useContext,
   useEffect,
-  useSyncExternalStore,
   type ReactNode,
 } from "react";
+import { usePathname } from "next/navigation";
 
 export type Locale = "ko" | "en";
 
@@ -78,6 +78,32 @@ const DICT = {
     "conv.sizeShort": "용량",
     "conv.targetSize": "목표 용량",
     "conv.converted": "{done}/{total} 변환됨",
+    "conv.advanced": "고급 설정",
+    "conv.advancedSub": "바꾸면 올린 파일 전체에 다시 적용돼요",
+    "conv.resize": "크기 조절",
+    "conv.resizeNone": "원본 크기 유지",
+    "conv.resizeWidth": "너비 맞추기 (px)",
+    "conv.resizeHeight": "높이 맞추기 (px)",
+    "conv.resizeDims": "너비 × 높이 (px)",
+    "conv.resizePercent": "퍼센트로 (%)",
+    "conv.width": "너비",
+    "conv.height": "높이",
+    "conv.percent": "퍼센트",
+    "conv.background": "배경색",
+    "conv.backgroundHint": "투명한 부분을 채울 색이에요 (JPG는 투명을 담지 못해요).",
+    "conv.autoOrient": "자동 회전 보정",
+    "conv.autoOrientHint": "EXIF 방향값대로 사진을 바로 세워요.",
+    "conv.stripMetadata": "메타데이터 제거",
+    "conv.stripMetadataHint": "EXIF·GPS 위치·색상 프로필을 지워 용량을 줄이고 개인정보를 보호해요.",
+    "conv.lossless": "무손실 압축",
+    "conv.losslessHint": "화질 손실 없이 WebP로 저장해요. 그래픽·스크린샷에 좋고, 사진은 오히려 용량이 커질 수 있어요.",
+    "conv.losslessBadge": "무손실",
+    "conv.preset": "프리셋",
+    "conv.presetNone": "불러오기…",
+    "conv.presetSave": "저장",
+    "conv.presetName": "프리셋 이름",
+    "conv.presetCancel": "취소",
+    "conv.reset": "초기화",
     "conv.clear": "모두 지우기",
     "conv.converting": "변환 중…",
     "conv.download": "다운로드",
@@ -280,6 +306,17 @@ const DICT = {
     "faq.stillA": "궁금한 점이 더 있다면 언제든 ",
     "faq.stillLink": "문의 페이지",
     "faq.stillB": "로 물어봐 주세요.",
+
+    // 404 / error pages.
+    "nf.code": "404",
+    "nf.title": "페이지를 찾을 수 없어요",
+    "nf.desc": "찾으시는 페이지가 없거나 주소가 바뀌었어요. 아래에서 다시 시작해 보세요.",
+    "nf.home": "홈으로 돌아가기",
+    "nf.browse": "변환 도구 둘러보기",
+    "err.title": "문제가 발생했어요",
+    "err.desc": "예상치 못한 오류가 생겼어요. 파일은 안전하게 기기 안에 남아 있어요. 다시 시도해 주세요.",
+    "err.retry": "다시 시도",
+    "err.home": "홈으로 돌아가기",
   },
   en: {
     "nav.convert": "Convert",
@@ -345,6 +382,32 @@ const DICT = {
     "conv.sizeShort": "Size",
     "conv.targetSize": "Target size",
     "conv.converted": "{done}/{total} converted",
+    "conv.advanced": "Advanced settings",
+    "conv.advancedSub": "Changes re-apply to every file you've added",
+    "conv.resize": "Resize",
+    "conv.resizeNone": "Keep original size",
+    "conv.resizeWidth": "Fit to width (px)",
+    "conv.resizeHeight": "Fit to height (px)",
+    "conv.resizeDims": "Width × Height (px)",
+    "conv.resizePercent": "By percentage (%)",
+    "conv.width": "Width",
+    "conv.height": "Height",
+    "conv.percent": "Percent",
+    "conv.background": "Background",
+    "conv.backgroundHint": "Fills transparent areas (JPG can't store transparency).",
+    "conv.autoOrient": "Auto-orient",
+    "conv.autoOrientHint": "Rotate photos upright using their EXIF orientation.",
+    "conv.stripMetadata": "Strip metadata",
+    "conv.stripMetadataHint": "Removes EXIF, GPS location, and color profiles — smaller files, more privacy.",
+    "conv.lossless": "Lossless",
+    "conv.losslessHint": "Encode WebP with no quality loss. Great for graphics and screenshots; photos may get larger.",
+    "conv.losslessBadge": "Lossless",
+    "conv.preset": "Preset",
+    "conv.presetNone": "Load…",
+    "conv.presetSave": "Save",
+    "conv.presetName": "Preset name",
+    "conv.presetCancel": "Cancel",
+    "conv.reset": "Reset",
     "conv.clear": "Clear all",
     "conv.converting": "Converting…",
     "conv.download": "Download",
@@ -548,6 +611,19 @@ const DICT = {
     "faq.stillA": "Still have a question? Reach us anytime on the ",
     "faq.stillLink": "contact page",
     "faq.stillB": ".",
+
+    // 404 / error pages.
+    "nf.code": "404",
+    "nf.title": "Page not found",
+    "nf.desc":
+      "The page you're looking for doesn't exist or has moved. Try starting again below.",
+    "nf.home": "Back to home",
+    "nf.browse": "Browse converters",
+    "err.title": "Something went wrong",
+    "err.desc":
+      "An unexpected error occurred. Your files are safe on your device. Please try again.",
+    "err.retry": "Try again",
+    "err.home": "Back to home",
   },
 } as const;
 
@@ -564,62 +640,59 @@ function format(str: string, params?: Params): string {
 
 interface I18n {
   locale: Locale;
-  setLocale: (l: Locale) => void;
   t: (key: TKey, params?: Params) => string;
 }
 
 const I18nContext = createContext<I18n>({
   locale: "ko",
-  setLocale: () => {},
   t: (k) => DICT.ko[k] ?? String(k),
 });
 
-const STORAGE_KEY = "pixly-lang";
+// ---------------------------------------------------------------------------
+// Locale is derived from the URL, not client state: Korean lives at the
+// unprefixed routes (/, /png-to-jpg/) and English at /en/* mirrors. Each
+// language is therefore a distinct, separately-indexable URL (dual-route i18n
+// SEO), and the prerendered static HTML is already in the right language —
+// usePathname() is baked into the HTML at build time, so /en/* prerenders
+// English with no hydration mismatch (there are no rewrites). The language
+// toggle navigates between the two URLs instead of flipping client state.
+// ---------------------------------------------------------------------------
 
-// Locale lives in localStorage (an external store). useSyncExternalStore reads
-// it without a setState-in-effect: during SSR/hydration it uses the server
-// snapshot ("ko", the default) so the markup matches, then switches to the
-// persisted value right after mount. Static-export safe — no window on the server.
-const localeListeners = new Set<() => void>();
-
-function readLocale(): Locale {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved === "ko" || saved === "en") return saved;
-  } catch {
-    /* ignore */
-  }
-  return "ko"; // default Korean
+/** Korean is the default; a path is English only when it is (or is under) /en. */
+export function localeFromPath(pathname: string): Locale {
+  return pathname === "/en" || pathname.startsWith("/en/") ? "en" : "ko";
 }
 
-function subscribeLocale(onChange: () => void): () => void {
-  localeListeners.add(onChange);
-  const onStorage = (e: StorageEvent) => {
-    if (e.key === STORAGE_KEY) onChange();
-  };
-  window.addEventListener("storage", onStorage);
-  return () => {
-    localeListeners.delete(onChange);
-    window.removeEventListener("storage", onStorage);
-  };
+/** Drop the /en prefix to get the language-neutral route — used to match the
+ *  active page against the unprefixed nav hrefs. "/en/crop/" → "/crop/". */
+export function stripLocalePrefix(pathname: string): string {
+  if (pathname === "/en" || pathname === "/en/") return "/";
+  return pathname.startsWith("/en/") ? pathname.slice(3) : pathname;
 }
 
-function getServerLocale(): Locale {
-  return "ko";
+/** Prefix an internal href for the given locale. Korean (default) stays
+ *  unprefixed; English gets /en. Hash-only, external, and already-prefixed
+ *  hrefs pass through. "/crop/" → "/en/crop/", "/" → "/en/". */
+export function localizedHref(locale: Locale, href: string): string {
+  if (locale !== "en") return href;
+  if (!href.startsWith("/")) return href;
+  if (href === "/en" || href.startsWith("/en/")) return href;
+  return href === "/" ? "/en/" : `/en${href}`;
 }
 
-function setLocale(l: Locale) {
-  try {
-    localStorage.setItem(STORAGE_KEY, l);
-  } catch {
-    /* ignore */
-  }
-  localeListeners.forEach((cb) => cb());
+/** The mirror of the current path in the other language — powers the toggle. */
+export function otherLocaleHref(pathname: string): string {
+  return localeFromPath(pathname) === "en"
+    ? stripLocalePrefix(pathname)
+    : localizedHref("en", pathname || "/");
 }
 
 export function I18nProvider({ children }: { children: ReactNode }) {
-  const locale = useSyncExternalStore(subscribeLocale, readLocale, getServerLocale);
+  const pathname = usePathname();
+  const locale = localeFromPath(pathname);
 
+  // Keep <html lang> in sync on client navigations. The initial paint is set by
+  // the inline LANG_INIT script in app/layout.tsx (before hydration).
   useEffect(() => {
     try {
       document.documentElement.lang = locale;
@@ -631,7 +704,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   const t = (key: TKey, params?: Params) =>
     format(DICT[locale][key] ?? DICT.en[key] ?? String(key), params);
 
-  return createElement(I18nContext.Provider, { value: { locale, setLocale, t } }, children);
+  return createElement(I18nContext.Provider, { value: { locale, t } }, children);
 }
 
 export function useI18n(): I18n {

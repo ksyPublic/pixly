@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import ConversionContent from "./ConversionContent";
+import ConversionContent from "@/app/[slug]/ConversionContent";
 import JsonLd from "@/components/JsonLd";
 import {
   breadcrumbSchema,
@@ -17,11 +17,15 @@ import {
   conversionHowToTitle,
   conversionSlug,
   getConversionBySlug,
-  metaDescription,
-  metaTitle,
+  metaDescriptionEn,
+  metaTitleEn,
 } from "@/lib/conversions";
 
-// Only the slugs we enumerate here are built. Anything else 404s.
+// English mirror of the converter detail pages, at /en/<from>-to-<to>/. The
+// visible body (ConversionContent) is shared with the Korean route and renders
+// English here because locale is derived from the URL; this shell emits the
+// English <title>/description and English JSON-LD so the indexed page is fully
+// English. hreflang links it to the canonical Korean page.
 export const dynamicParams = false;
 
 export function generateStaticParams() {
@@ -36,19 +40,17 @@ export async function generateMetadata({
   const { slug } = await params;
   const c = getConversionBySlug(slug);
   if (!c) return {};
-  // Korean-first: the emitted <title>/description match the indexed (default-ko)
-  // page. English equivalents live in metaTitleEn/metaDescriptionEn.
   return {
-    title: metaTitle(c),
-    description: metaDescription(c),
+    title: metaTitleEn(c),
+    description: metaDescriptionEn(c),
     alternates: {
-      canonical: `/${slug}/`,
+      canonical: `/en/${slug}/`,
       languages: altLanguages(`/${slug}/`),
     },
   };
 }
 
-export default async function ConversionPage({
+export default async function EnConversionPage({
   params,
 }: {
   params: Promise<{ slug: string }>;
@@ -57,17 +59,14 @@ export default async function ConversionPage({
   const c = getConversionBySlug(slug);
   if (!c) notFound();
 
-  const url = `${SITE_URL}/${slug}/`;
+  const url = `${SITE_URL}/en/${slug}/`;
 
-  // JSON-LD is rendered in Korean ("ko") to mirror the default static HTML the
-  // client component produces. The how-to text comes from the SAME builders the
-  // client uses, so structured data can never drift from the page.
   const jsonLd = [
-    webApplicationSchema(conversionAppName(c, "ko"), url),
-    howToSchema(conversionHowToTitle(c, "ko"), conversionHowToSteps(c, "ko")),
+    webApplicationSchema(conversionAppName(c, "en"), url),
+    howToSchema(conversionHowToTitle(c, "en"), conversionHowToSteps(c, "en")),
     breadcrumbSchema([
-      { name: "홈", url: `${SITE_URL}/` },
-      { name: conversionBreadcrumbName(c, "ko"), url },
+      { name: "Home", url: `${SITE_URL}/en/` },
+      { name: conversionBreadcrumbName(c, "en"), url },
     ]),
   ];
 

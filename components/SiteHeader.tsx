@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode, type Ref } from "react";
-import Link from "next/link";
+import Link from "@/components/LocaleLink";
 import { usePathname } from "next/navigation";
 import Logo from "./Logo";
 import ThemeToggle from "./ThemeToggle";
 import LanguageToggle from "./LanguageToggle";
 import NavDropdown, { NavMenuLink } from "./NavDropdown";
-import { useI18n } from "@/lib/i18n";
+import { stripLocalePrefix, useI18n } from "@/lib/i18n";
 import {
   ALL_TOOLS_HREF,
   CONVERSION_COUNT,
@@ -128,6 +128,10 @@ function MenuIcon({ open }: { open: boolean }) {
 export default function SiteHeader() {
   const { t } = useI18n();
   const pathname = usePathname();
+  // Active-state matching compares against the unprefixed nav hrefs, so drop the
+  // /en prefix first — /en/compress/ should light up the same nav item as
+  // /compress/. Raw `pathname` is still used for menu-close-on-navigation.
+  const routePath = stripLocalePrefix(pathname);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState<OpenMenu>(null);
   const [seenPath, setSeenPath] = useState(pathname);
@@ -161,8 +165,8 @@ export default function SiteHeader() {
   }, [mobileOpen]);
 
   const closeMobile = () => setMobileOpen(false);
-  const convertActive = isConvertActive(pathname);
-  const pdfActive = isPdfActive(pathname);
+  const convertActive = isConvertActive(routePath);
+  const pdfActive = isPdfActive(routePath);
 
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-bg/80 backdrop-blur-md">
@@ -194,7 +198,7 @@ export default function SiteHeader() {
                   <NavMenuLink
                     key={l.href}
                     href={l.href}
-                    active={isRouteActive(pathname, l.href)}
+                    active={isRouteActive(routePath, l.href)}
                   >
                     {l.label}
                   </NavMenuLink>
@@ -225,7 +229,7 @@ export default function SiteHeader() {
                   <NavMenuLink
                     key={l.href}
                     href={l.href}
-                    active={isRouteActive(pathname, l.href)}
+                    active={isRouteActive(routePath, l.href)}
                   >
                     {l.label}
                   </NavMenuLink>
@@ -238,7 +242,7 @@ export default function SiteHeader() {
               <NavLink
                 key={l.href}
                 href={l.href}
-                active={isRouteActive(pathname, l.href)}
+                active={isRouteActive(routePath, l.href)}
               >
                 {t(l.labelKey)}
               </NavLink>
@@ -247,7 +251,7 @@ export default function SiteHeader() {
             {/* FAQ — its own top-level entry. */}
             <NavLink
               href={FAQ_LINK.href}
-              active={isRouteActive(pathname, FAQ_LINK.href)}
+              active={isRouteActive(routePath, FAQ_LINK.href)}
             >
               {FAQ_LINK.label}
             </NavLink>
@@ -299,7 +303,7 @@ export default function SiteHeader() {
               <MobileLink
                 key={l.href}
                 href={l.href}
-                active={isRouteActive(pathname, l.href)}
+                active={isRouteActive(routePath, l.href)}
                 innerRef={i === 0 ? firstLinkRef : undefined}
                 onNavigate={closeMobile}
               >
@@ -325,7 +329,7 @@ export default function SiteHeader() {
               <MobileLink
                 key={l.href}
                 href={l.href}
-                active={isRouteActive(pathname, l.href)}
+                active={isRouteActive(routePath, l.href)}
                 onNavigate={closeMobile}
               >
                 {l.label}
@@ -339,7 +343,7 @@ export default function SiteHeader() {
               <MobileLink
                 key={l.href}
                 href={l.href}
-                active={isRouteActive(pathname, l.href)}
+                active={isRouteActive(routePath, l.href)}
                 onNavigate={closeMobile}
               >
                 {t(l.labelKey)}
@@ -351,7 +355,7 @@ export default function SiteHeader() {
           <MobileSection title={t("nav.info")}>
             <MobileLink
               href={FAQ_LINK.href}
-              active={isRouteActive(pathname, FAQ_LINK.href)}
+              active={isRouteActive(routePath, FAQ_LINK.href)}
               onNavigate={closeMobile}
             >
               {FAQ_LINK.label}
@@ -360,7 +364,7 @@ export default function SiteHeader() {
               <MobileLink
                 key={l.href}
                 href={l.href}
-                active={isRouteActive(pathname, l.href)}
+                active={isRouteActive(routePath, l.href)}
                 onNavigate={closeMobile}
               >
                 {t(l.labelKey)}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, type CSSProperties } from "react";
-import Link from "next/link";
+import Link from "@/components/LocaleLink";
 import { useI18n } from "@/lib/i18n";
 import { useScrollReveal } from "@/components/useScrollReveal";
 import { faqCategories } from "./faqData";

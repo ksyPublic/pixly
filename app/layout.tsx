@@ -76,6 +76,12 @@ export const metadata: Metadata = {
 // Runs before paint so the saved theme applies with no flash.
 const THEME_INIT = `(function(){try{var t=localStorage.getItem('pixly-theme');if(t==='dark'||t==='light'){document.documentElement.setAttribute('data-theme',t);}}catch(e){}})();`;
 
+// Sets <html lang> from the URL before paint: English on /en/* routes, Korean
+// everywhere else. The static markup ships lang="ko" (the default/primary
+// language); this corrects the /en mirror pre-hydration so it never announces
+// the wrong language. The I18nProvider keeps it in sync on client navigations.
+const LANG_INIT = `(function(){try{var p=location.pathname;document.documentElement.lang=(p==='/en'||p.indexOf('/en/')===0)?'en':'ko';}catch(e){}})();`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -83,12 +89,13 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
+      lang="ko"
       suppressHydrationWarning
       className={`${display.variable} ${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-bg text-ink">
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
+        <script dangerouslySetInnerHTML={{ __html: LANG_INIT }} />
         <I18nProvider>
           <SiteHeader />
           {children}

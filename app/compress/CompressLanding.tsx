@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/LocaleLink";
 import CompressContent from "./CompressContent";
 import { compressCopy } from "./copy";
 import { AdSlot } from "@/components/AdSense";

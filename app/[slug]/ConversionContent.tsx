@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/LocaleLink";
 import Converter from "@/components/Converter";
 import { AdSlot } from "@/components/AdSense";
 import { useI18n } from "@/lib/i18n";
