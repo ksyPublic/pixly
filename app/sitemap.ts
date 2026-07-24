@@ -8,7 +8,7 @@ import { SITE_URL } from "@/lib/site";
 export const dynamic = "force-static";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const infoPages = ["", "crop", "compress", "faq", "about", "privacy", "contact"];
+  const infoPages = ["", "crop", "compress", "video", "faq", "about", "privacy", "contact"];
   const converterPages = CONVERSIONS.map((c) => conversionSlug(c));
   // The PDF tools are tool pages like the converters; their "-to-" slugs pick
   // up the same 0.8 priority below.

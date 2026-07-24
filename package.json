@@ -12,7 +12,9 @@
   },
   "dependencies": {
     "@imagemagick/magick-wasm": "^0.0.41",
+    "gifenc": "^1.0.3",
     "heic2any": "^0.0.4",
+    "mediabunny": "^1.51.0",
     "next": "16.2.10",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^6.1.200",

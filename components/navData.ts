@@ -49,6 +49,7 @@ export const ALL_TOOLS_HREF = "/#all-tools";
 export const EDIT_LINKS: NavItem[] = [
   { href: "/compress/", labelKey: "nav.compress" },
   { href: "/crop/", labelKey: "nav.crop" },
+  { href: "/video/", labelKey: "nav.video" },
 ];
 
 // PDF tools. Labels are format arrows (language-neutral), so no i18n keys.
@@ -93,7 +94,7 @@ export function isPdfActive(pathname: string): boolean {
 export function isConvertActive(pathname: string): boolean {
   if (isPdfActive(pathname)) return false;
   const p = normalizePath(pathname);
-  if (p === "/compress" || p === "/crop") return false;
+  if (p === "/compress" || p === "/crop" || p === "/video") return false;
   return getConversionBySlug(p.replace(/^\//, "")) !== undefined;
 }
 
@@ -101,7 +102,7 @@ export function isConvertActive(pathname: string): boolean {
 // /compress, /crop, or any PDF route. The home page and info pages stay inactive.
 export function isToolsActive(pathname: string): boolean {
   const p = normalizePath(pathname);
-  if (p === "/compress" || p === "/crop") return true;
+  if (p === "/compress" || p === "/crop" || p === "/video") return true;
   if (isPdfActive(pathname)) return true;
   return getConversionBySlug(p.replace(/^\//, "")) !== undefined;
 }
